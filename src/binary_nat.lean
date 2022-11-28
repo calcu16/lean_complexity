@@ -1,5 +1,6 @@
 import data.nat.pow
 import data.vector.basic
+import cost
 
 inductive binary_nat : ℕ → Type
 | bit_false : binary_nat 0
@@ -20,73 +21,98 @@ def ofNat : Π {n}, ℕ → binary_nat n
 end binary_nat
 
 namespace costed_binary_nat
-
+open complexity
 universe u
 variables {α : Type u}
 
-structure cost : Type := (value : ℕ)
+@[simp]
+def bit_zero := cost.succ binary_nat.bit_false
 
-def costed (a : Type _) := cost → (cost × a)
+@[simp]
+def bit_one := cost.succ binary_nat.bit_true
 
-def cost_inc (a : α) (c: cost):= (cost.mk (c.value + 1), a)
+@[simp]
+def intro {n : ℕ} (x y : binary_nat n) :=
+  cost.succ (binary_nat.intro x y)
 
-def costed_bit_zero := cost_inc binary_nat.bit_false
-
-def costed_bit_one := cost_inc binary_nat.bit_true
-
-def costed_intro {n : ℕ} (x y : binary_nat n) :=
-  cost_inc (binary_nat.intro x y)
-
-def costed_split {n : ℕ} (x : binary_nat (n+1)) :=
+@[simp]
+def split {n : ℕ} (x : binary_nat (n+1)) :=
   match x with | (binary_nat.intro y z) :=
-    cost_inc (y, z)
+    cost.succ (y, z)
   end
 
-def costed_bit_and (x y : binary_nat 0) :=
-  match x, y with
-  | binary_nat.bit_true, binary_nat.bit_true := cost_inc binary_nat.bit_true
-  | _, _ := cost_inc binary_nat.bit_false
-  end
+@[simp]
+def ite (x : binary_nat 0) (ct cf : cost.costed α) : cost.costed α :=
+  match x with
+  | binary_nat.bit_true := ct
+  | binary_nat.bit_false := cf
+  end >>= cost.succ
 
-def costed_bit_or (x y : binary_nat 0) :=
-  match x, y with
-  | binary_nat.bit_false, binary_nat.bit_false := cost_inc binary_nat.bit_false
-  | _, _ := cost_inc binary_nat.bit_true
-  end
+def zero : Π (n), cost.costed (binary_nat n)
+| 0 := bit_zero
+| (n+1) := do
+  z ← zero n,
+  intro z z
 
-def costed_bit_xor (x y : binary_nat 0) :=
-  match x, y with
-  | binary_nat.bit_true, binary_nat.bit_true := cost_inc binary_nat.bit_false
-  | binary_nat.bit_false, binary_nat.bit_false := cost_inc binary_nat.bit_false
-  | _, _ := cost_inc binary_nat.bit_true
-  end
+def add_with_carry : Π {n}, binary_nat n → binary_nat n → binary_nat 0 →
+    cost.costed (binary_nat 0 × binary_nat n)
+| 0 := λ x y z,
+  ite x
+    (ite y
+      (ite z
+        (cost.cross bit_one bit_one)
+        (cost.cross bit_one bit_zero))
+      (ite z
+        (cost.cross bit_one bit_zero)
+        (cost.cross bit_zero bit_one)))
+    (ite y
+      (ite z
+        (cost.cross bit_one bit_zero)
+        (cost.cross bit_zero bit_one))
+      (ite z
+       (cost.cross bit_zero bit_one)
+       (cost.cross bit_zero bit_zero)))
+| (n+1) := λ x y z, do
+  (xu, xl) ← split x,
+  (yu, yl) ← split y,
+  zl ← add_with_carry xl yl z,
+  zu ← add_with_carry xu yu zl.fst,
+  cost.cross (pure zu.fst) (intro zu.snd zl.snd)
 
-def costed_zero : Π (n), costed (binary_nat n)
-| 0 := costed_bit_zero
-| (n+1) := λ c₀,
-  match costed_zero n c₀ with
-  | (c, x) := costed_intro x x c
-  end
+def add {n : ℕ}: binary_nat n → binary_nat n → cost.costed (binary_nat n) :=
+  λ x y, do
+    z0 ← bit_zero,
+    z ← add_with_carry x y z0,
+    return z.snd
 
-def costed_add_with_carry : Π {n}, binary_nat n → binary_nat n → binary_nat 0 →
-    costed (binary_nat 0 × binary_nat n)
-| 0 := λ x y zc c,
-  match costed_bit_xor x y c with | (c, z) :=
-  match costed_bit_xor z zc c with | (c, z) :=
-  match costed_bit_and x y c with | (c, xy) :=
-  match costed_bit_and x zc c with | (c, xz) :=
-  match costed_bit_and y zc c with | (c, yz) :=
-  match costed_bit_or xy xz c with | (c, xy_xz) :=
-  match costed_bit_or xy_xz yz c with | (c, zc) :=
-    (c, zc, z)
-  end end end end end end end
-| (n+1) := λ x y zc c,
-  match costed_split x c with | (c, xu, xl) :=
-  match costed_split y c with | (c, yu, yl) :=
-  match costed_add_with_carry xl yl zc c with | (c, zc, zl) :=
-  match costed_add_with_carry xu yu zc c with | (c, zc, zu) :=
-  match costed_intro zu zl c with | (c, z) :=
-    (c, zc, z)
-  end end end end end
+def traditional_multiply : Π {n}, binary_nat n → binary_nat n →
+    cost.costed (binary_nat (n + 1))
+| 0 := λ x y, do
+  z0 ← ite x (ite y bit_one bit_zero) (ite y bit_zero bit_zero),
+  z1 ← bit_zero,
+  intro z1 z0
+| (n+1) :=
+  have shift_n : (binary_nat (n + 1) → cost.costed (binary_nat (n + 2))) :=
+    (λ x, do
+      zn ← zero n,
+      x ← split x,
+      xu ← intro zn x.fst,
+      xl ← intro x.snd zn,
+      intro xu xl),
+  λ x y, do
+    (xu, xl) ← split x,
+    (yu, yl) ← split y,
+    ll ← traditional_multiply xl yl,
+    lu ← traditional_multiply xl yu,
+    ul ← traditional_multiply xu yl,
+    uu ← traditional_multiply xu yu,
+    zn1 ← zero (n + 1),
+    ll ← intro zn1 ll,
+    lu ← shift_n lu,
+    ul ← shift_n ul,
+    uu ← intro uu zn1,
+    l ← add lu ll,
+    u ← add uu ul,
+    add u l
 
 end costed_binary_nat
