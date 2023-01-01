@@ -39,7 +39,7 @@ instance encodable_application (α: Type) [f: has_encoding α] (β: Type) [g: ha
 
 def nat_complexity: encodable_function → Type
 | (encodable_function.result _) := ℕ
-| (encodable_function.application _ b) := ℕ → (nat_complexity b)
+| (@encodable_function.application α _ b) := α → (nat_complexity b)
 
 def nat_complexity' (α : Type) [f: has_encodable_function α] := nat_complexity f.value.1
 
@@ -47,7 +47,7 @@ theorem unwrap_has_encodable {α: Type} (a: has_encodable_function α): α = unw
 
 def witness_complexity: Π (a : encodable_function), (unwrap a) → utlc → (nat_complexity a) → Prop
 | (encodable_function.result e) := λ f g n, utlc.β.distance_le n g (@encode _ e f)
-| (@encodable_function.application α e b) := λ f g n, ∀ a : α, witness_complexity b (f a) (g·(@encode α e a)) (n (@encode α e a).size)
+| (@encodable_function.application α e b) := λ f g n, ∀ a : α, witness_complexity b (f a) (g·(@encode α e a)) (n a)
 
 end hidden
 
