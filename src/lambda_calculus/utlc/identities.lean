@@ -243,6 +243,9 @@ begin
     exact ⟨f_ih_f _ hf, f_ih_g _ hg⟩ }
 end
 
+theorem substitution_identity_of_closed: f.closed → ∀ n g, f[n:=g] = f :=
+  λ p n g, substitution_identity_of_closed_below _ (closed_below_mono p (nat.zero_le _))
+
 theorem substitution_of_closed_below_gt: f.closed_below (n+1) → g.closed_below n → m ≤ n → f[m:=g].closed_below n :=
 begin
   induction f generalizing n m g,
@@ -356,9 +359,9 @@ begin
   apply substitution_shift_lt _ _ (nat.zero_lt_succ _),
 end
 
-theorem shift_substitution_index (f: utlc) (n: ℕ): (f ↑¹ n)[n:=↓n] = f :=
+theorem shift_substitution_index (f: utlc) (n: ℕ) (g: utlc): (f ↑¹ n)[n:=g] = f :=
 begin
-  induction f generalizing n,
+  induction f generalizing n g,
   all_goals { simp },
   { split_ifs,
     simp [h],
@@ -367,7 +370,7 @@ begin
     exfalso,
     linarith },
   { apply f_ih },
-{ exact ⟨f_ih_f _, f_ih_g _⟩ }
+{ exact ⟨f_ih_f _ _, f_ih_g _ _⟩ }
 end
 
 theorem substitution_index_succ: f.closed_below (n + 1) → f[n:=↓(n+1)] = f ↑¹ n :=

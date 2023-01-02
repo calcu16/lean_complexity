@@ -146,6 +146,23 @@ begin
   refl
 end
 
+theorem reduced_reduction_inj {f g: utlc}: reduced f → f ↠β g → f = g :=
+begin
+  intros hf p,
+  induction p with x y hx hy fx,
+  { refl },
+  rw [←fx] at *,
+  exfalso,
+  apply not_reduction_of_reduced hf _ hy
+end
+
+theorem reduced_equiv_inj {f g: utlc}: reduced f → reduced g → f ≡β g → f = g :=
+begin
+  intros hf hg p,
+  cases p with x p,
+  rw [reduced_reduction_inj hf p.left, reduced_reduction_inj hg p.right]
+end
+
 end β
 end utlc
 end lambda_calculus

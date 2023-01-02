@@ -153,6 +153,32 @@ begin
   contradiction
 end
 
+
+def not_reduction_of_reduced {f: utlc}: reduced f → ∀ g, ¬ f →β g :=
+begin
+  induction f,
+  all_goals { simp [has_β_reduction.step, reduction_step, lambda_calculus.utlc.reduced] },
+  { intros p g,
+    cases g,
+    all_goals { simp [has_β_reduction.step, reduction_step] },
+    exact f_ih p _ },
+  { intros p q r g,
+    cases g,
+    all_goals { simp [has_β_reduction.step, reduction_step] },
+    any_goals { intro h, cases h, revert h },
+    any_goals {
+      cases f_f,
+      any_goals { simp },
+      simp [lambda_calculus.utlc.reduced] at p,
+      contradiction },
+    { cases h,
+      all_goals { cases h },
+      specialize f_ih_f q g_f,
+      contradiction,
+      specialize f_ih_g r g_g,
+      contradiction } }
+end
+
 end β
 end utlc
 end lambda_calculus

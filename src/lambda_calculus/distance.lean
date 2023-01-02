@@ -1,4 +1,6 @@
 import tactic.basic
+import tactic.linarith
+import tactic.suggest
 
 namespace lambda_calculus
 
@@ -24,8 +26,21 @@ by { intro p, simp[distance_le_one, p] }
 theorem distance_le_single': r b a → distance_le r 1 a b :=
 by { intro p, simp[distance_le_one, p] }
 
-theorem distance_le_mono: distance_le r n a b → distance_le r (n+1) a b :=
+theorem distance_le_succ: distance_le r n a b → distance_le r (n+1) a b :=
 by { intro p, simp [distance_le, p] }
+
+theorem distance_le_mono: distance_le r n a b → n ≤ m → distance_le r m a b :=
+begin
+  induction m generalizing n,
+  { simp,
+    intros _ hn,
+    rw [← hn],
+    assumption },
+  { intros p hnm,
+    cases eq_or_lt_of_le hnm,
+    { rw [← h], assumption },
+    exact distance_le_succ (m_ih p (nat.le_of_lt_succ h)) }
+end
 
 theorem distance_le_head: distance_le r (n+1) a b → ∃ f, distance_le r 1 a f ∧ distance_le r n f b :=
 begin
