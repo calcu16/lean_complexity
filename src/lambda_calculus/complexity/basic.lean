@@ -82,8 +82,8 @@ begin
 end
 
 theorem iteration_complexity_le {α : Type} [has_encoding α]
-  (fi: α → α) (ni: α → ℕ) (hi: complexity_le fi ni)
-  (niz : α → ℕ → ℕ) (hiz: ∀ a n, iteration1_complexity_le_combine' fi ni a n ≤ niz a n):
+  {fi: α → α} {ni: α → ℕ} (hi: complexity_le fi ni)
+  {niz : α → ℕ → ℕ} (hiz: ∀ a n, iteration1_complexity_le_combine' fi ni a n ≤ niz a n):
     complexity_le (λ (a : α) (n: ℕ), fi^[n] a) niz :=
 begin
   rcases hi with ⟨lc, hlc, hi⟩,
