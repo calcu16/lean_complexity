@@ -22,7 +22,7 @@ def sub: utlc := Λ Λ ↓0·pred·↓1
 
 def is_zero: utlc := Λ ↓0·(Λ false)·true
 
-def apply_iterate (f: utlc) := Λ Λ ↓0·f·↓1
+def apply_iterate: utlc := (Λ Λ Λ ↓0·↓2·↓1)
 
 local attribute [simp] closed closed_below
 local attribute [simp] β.normal_iteration β.strategic_reduction_step
@@ -179,32 +179,36 @@ begin
 end
 end
 
-theorem apply_iterate_zero_distance_le {f g: utlc}: f.closed → g.closed → β.distance_le 4 ((apply_iterate f)·g·(encode 0)) g :=
+theorem apply_iterate_zero_distance_le {f g: utlc}: β.distance_le 5 (apply_iterate·f·g·(encode 0)) g :=
 begin
-  intros p q,
   simp [apply_iterate, encode, has_encoding.value],
   apply distance_le_trans',
-  apply β.distance_le_of_normal_iteration 2,
-  simp [substitution_identity_of_closed p, substitution_identity_of_closed q],
+  apply β.distance_le_of_normal_iteration 3,
+  simp,
+  rw [← shift_comm],
+  simp [shift_substitution_index],
   apply lift_zero_distance_le,
   simp,
 end
 
-theorem apply_iterate_succ_distance_le {f g: utlc}: f.closed → g.closed → ∀ n, β.distance_le 8 ((apply_iterate f)·g·(encode (n+1))) (f·(apply_iterate f·g·encode n)) :=
+theorem apply_iterate_succ_distance_le {f g: utlc}: ∀ n, β.distance_le 10 (apply_iterate·f·g·(encode (n+1))) (f·(apply_iterate·f·g·encode n)) :=
 begin
-  intros p q n,
+  intros n,
   simp [apply_iterate, encode, has_encoding.value],
   apply distance_le_trans',
-  apply β.distance_le_of_normal_iteration 2,
-  simp [substitution_identity_of_closed p, substitution_identity_of_closed q],
+  apply β.distance_le_of_normal_iteration 3,
+  simp,
+  rw [← shift_comm],
+  simp [shift_substitution_index],
   apply distance_le_trans',
   apply lift_succ_distance_le,
   apply distance_le_symm,
   apply β.dot_distance_le_dot_right,
-  apply β.distance_le_of_normal_iteration 2,
+  apply β.distance_le_of_normal_iteration 3,
   simp,
-  simp [substitution_identity_of_closed p, substitution_identity_of_closed q],
-  norm_num,
+  rw [← shift_comm],
+  simp [shift_substitution_index],
+  all_goals { refl },
 end
 
 theorem sub_distance_le (n m: ℕ): β.distance_le ((2 * n + 9) * m + 4) (sub·(lift n)·(lift m)) (lift (n - m)) :=

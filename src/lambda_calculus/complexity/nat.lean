@@ -32,14 +32,14 @@ begin
 end
 
 theorem sub_complexity: complexity_le nat.sub
-  (cast (by simp) (λ n m, (2 * n + 13) * m + 4)) :=
+  (cast (by simp) (λ n m, (2 * n + 15) * m + 5)) :=
 begin
   have hsub : nat.sub = (λ n m, nat.pred^[m] n),
   { ext1 n, ext1 m,
     induction m generalizing n,
     { simp [nat.sub] },
     simp [nat.sub],
-    rw [m_ih, f_iterate nat.pred],
+    rw [m_ih, iteration_complexity_le.f_iterate nat.pred],
     simp },
   rw [hsub],
   apply iteration_complexity_le pred_complexity,
