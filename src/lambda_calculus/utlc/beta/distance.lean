@@ -18,7 +18,7 @@ theorem distance_le_of_reduction: a ↠β b → ∃ n, distance_le n a b :=
 begin
   intro h,
   induction h with _ _ _ hab,
-  { exact ⟨0, distance_le_refl _ _⟩ },
+  { exact ⟨0, distance_le_refl _⟩ },
   cases h_ih with n h_ih,
   exact ⟨n+1, distance_le_trans h_ih (distance_le_single hab)⟩
 end

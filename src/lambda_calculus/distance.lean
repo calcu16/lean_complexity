@@ -15,7 +15,7 @@ def distance_le (r: α → α → Prop): ℕ → α → α → Prop
 
 theorem distance_le_zero (r: α → α → Prop): distance_le r 0 a b ↔ a = b := by simp[distance_le]
 
-theorem distance_le_refl (r: α → α → Prop) (a: α): distance_le r 0 a a := by rw[distance_le_zero]
+theorem distance_le_refl (a: α): distance_le r 0 a a := by rw[distance_le_zero]
 
 theorem distance_le_one: distance_le r 1 a b ↔ (a = b ∨ r a b ∨ r b a) :=
 by simp[distance_le]

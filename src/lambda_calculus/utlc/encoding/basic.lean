@@ -123,7 +123,9 @@ def uncurry: utlc := Λ Λ ↓0·↓1
 @[simp] theorem uncurry_closed_below {n: ℕ}: uncurry.closed_below n := closed_below_mono uncurry_closed (nat.zero_le _)
 
 def swap: utlc := Λ ↓0·(Λ Λ Λ ↓0·↓1·↓2)
+def fork: utlc := Λ Λ Λ pair (↓2·↓0) (↓1·↓0)
 def to_fst: utlc := Λ Λ pair (↓1·↓0) ↓0
+def to_snd: utlc := Λ Λ pair (↓0) (↓1·↓0)
 
 instance prod_encoding {α β: Type*} [f: has_encoding α] [g: has_encoding β]:
   has_encoding (α × β) := ⟨ ⟨ λ a, pair (encode a.fst) (encode a.snd),
@@ -166,6 +168,24 @@ begin
   simp [shift_substitution_index],
 end
 
+theorem fork_distance_le (f g x: utlc):
+  utlc.β.distance_le 3 (fork·f·g·x) (pair (f·x) (g·x)) :=
+begin
+  simp [curry, pair, tuple],
+  simp,
+  apply utlc.β.distance_le_of_normal_iteration,
+  simp [encode, has_encoding.value, pair, tuple, fork],
+  rw [← shift_comm],
+  simp [shift_substitution_index],
+  norm_num,
+  rw [← shift_comm f],
+  rw [← shift_comm (f ↑¹ 0)],
+  simp [shift_substitution_index],
+  rw [← shift_comm],
+  simp [shift_substitution_index],
+  all_goals { refl },
+end
+
 theorem to_fst_distance_le (f g: utlc):
   utlc.β.distance_le 2 (to_fst·f·g) (pair (f·g) g) :=
 begin
@@ -173,6 +193,17 @@ begin
   simp,
   apply utlc.β.distance_le_of_normal_iteration,
   simp [encode, has_encoding.value, pair, tuple, to_fst],
+  rw [← shift_comm],
+  simp [shift_substitution_index],
+end
+
+theorem to_snd_distance_le (f g: utlc):
+  utlc.β.distance_le 2 (to_snd·f·g) (pair g (f·g)) :=
+begin
+  simp [curry, pair, tuple],
+  simp,
+  apply utlc.β.distance_le_of_normal_iteration,
+  simp [encode, has_encoding.value, pair, tuple, to_snd],
   rw [← shift_comm],
   simp [shift_substitution_index],
 end
