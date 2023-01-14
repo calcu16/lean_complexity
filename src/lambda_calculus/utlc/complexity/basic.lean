@@ -37,6 +37,14 @@ def is_encoded_function (α: Type) :=  { value: encodable_function // unwrap val
 
 class has_encodable_function (α: Type) := (value: is_encoded_function α)
 
+@[simp] theorem unwrap_has_encodable {α: Type} (a: has_encodable_function α): unwrap a.value.1 = α := a.value.2
+theorem unwrap_has_encodable' {α: Type} (a: has_encodable_function α): α = unwrap a.value.1 := a.value.2.symm
+
+@[simp] theorem unwrap_is_encoded_function {α: Type} (a: is_encoded_function α): unwrap a.1 = α := a.2
+
+def cast_unwrap {α: Type} [a: has_encodable_function α] (f: α): unwrap a.value.1 :=
+  cast (unwrap_has_encodable' a) f
+
 instance encodable_result (α: Type) [f: has_encoding α]:
     has_encodable_function α :=
   ⟨ ⟨ encodable_function.result f, by simp [unwrap] ⟩ ⟩
@@ -70,16 +78,21 @@ namespace cost_function
 | (encodable_function.result _) := λ n m, cast (by simp) n ≤ cast (by simp) m
 | (encodable_function.application _ _) := λ f g, ∀ a, always_le (f a) (g a)
 
+@[refl]
+theorem always_le_refl {α: Type} [α_en: has_encodable_function α] (c: cost_function' α): always_le c c :=
+begin
+  unfreezingI {
+    cases α_en,
+    cases α_en with α' hα,
+    induction α' with _ _ β β_en γ_en ih generalizing α c,
+    rw [always_le],
+    intro a,
+    apply ih,
+    simp at hα,
+  }
+end
+
 end cost_function
-
-@[simp] theorem unwrap_has_encodable {α: Type} (a: has_encodable_function α): unwrap a.value.1 = α := a.value.2
-theorem unwrap_has_encodable' {α: Type} (a: has_encodable_function α): α = unwrap a.value.1 := a.value.2.symm
-
-@[simp] theorem unwrap_is_encoded_function {α: Type} (a: is_encoded_function α): unwrap a.1 = α := a.2
-
-def cast_unwrap {α: Type} [a: has_encodable_function α] (f: α): unwrap a.value.1 :=
-  cast (unwrap_has_encodable' a) f
-  
 
 def witness: Π (a : encodable_function), (unwrap a) → utlc → (cost_function a) → Prop
 | (encodable_function.result e) := λ f g n, utlc.β.distance_le n g (@encode _ e f)

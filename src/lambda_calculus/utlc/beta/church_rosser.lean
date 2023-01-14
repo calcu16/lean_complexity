@@ -8,6 +8,8 @@ namespace lambda_calculus
 namespace utlc
 namespace β
 
+local notation a `[` b `:=` c  `]` : 70 := has_substitution.substitution a b c
+
 theorem β_of_parallel {f g : utlc}: f →∥ g → f ↠β g :=
 begin
   intro pfg,
@@ -34,37 +36,39 @@ begin
   intro hfg,
   induction f using lambda_calculus.utlc.substitution_induction_on generalizing g,
   all_goals { cases g, all_goals { simp } },
-  any_goals { simp [has_β_reduction.step, reduction_step] at hfg, contradiction },
-  { simp [has_β_reduction.step, reduction_step] at hfg,
+  any_goals { simp [lambda_step_iff, dot_step_iff] at hfg, contradiction },
+  { simp at hfg,
     apply f_hx hfg },
-  { simp [has_β_reduction.step, reduction_step] at hfg,
-    exact ⟨f_hx hfg.right, hfg.left.symm⟩ },
-  any_goals { simp [has_β_reduction.step, reduction_step] at hfg,
+  { simp [dot_step_cases, and.assoc] at hfg, exact ⟨f_hx hfg.right, hfg.left⟩ },
+  any_goals { simp [dot_step_iff, and.assoc] at hfg,
     rw [← hfg],
     apply parallel.dot_step_substitution,
     all_goals { refl }  },
-  { simp [has_β_reduction.step, reduction_step] at hfg,
-    cases hfg,
-    { rw [← hfg],
+  { simp [dot_step_iff, lambda_step_iff, and.assoc] at hfg,
+    obtain hfg|hfg|hfg := hfg,
+    { rw [←hfg],
       apply parallel.dot_step_substitution,
-      all_goals { refl } },
-    cases hfg,
-    { cases g_f,
-      all_goals { simp [has_β_reduction.step, reduction_step] at hfg },
-      any_goals { contradiction },
+      all_goals { refl }, },
+    { rcases hfg with ⟨hfg, x, hgx, hfx⟩,
       apply parallel.dot_step_dot,
-      simp,
-      apply f_hx hfg.left,
-      rw [hfg.right] },
+      rw [hgx],
+      rw parallel.lambda_step_lambda,
+      apply f_hx,
+      apply hfx,
+      rw [hfg] },
     { apply parallel.dot_step_dot,
       rw [hfg.left],
-      apply f_hy hfg.right } },
-  { cases dot_dot_step_dot hfg,
-    all_goals { apply parallel.dot_step_dot },
-    apply f_hxy h.left,
-    rw [h.right],
-    rw [h.left],
-    apply f_hz h.right }
+      apply f_hy,
+      apply hfg.right } },
+  { rw [dot_step_iff] at hfg,
+    simp [and.assoc] at hfg,
+    cases hfg;
+    apply parallel.dot_step_dot;
+    try { rw [hfg.left] };
+    try { apply f_hxy };
+    try { apply f_hz };
+    apply hfg.right,
+  }
 end
 
 theorem parallel_iff_β {f g : utlc}: f ↠∥ g ↔ f ↠β g :=
@@ -153,7 +157,7 @@ begin
   { refl },
   rw [←fx] at *,
   exfalso,
-  apply not_reduction_of_reduced hf _ hy
+  apply (reduced_of_not_reduction _).mp hf _ hy
 end
 
 theorem reduced_equiv_inj {f g: utlc}: reduced f → reduced g → f ≡β g → f = g :=

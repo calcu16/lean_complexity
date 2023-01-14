@@ -74,7 +74,8 @@ begin
   apply distance_le_cong,
   intros x y,
   simp,
-  apply dot_step_dot_left
+  intro p,
+  apply dot_step_dot_left p,
 end
 
 theorem dot_distance_le_dot_right: distance_le n a b → distance_le n (c·a) (c·b) :=
@@ -83,7 +84,8 @@ begin
   apply distance_le_cong,
   intros x y,
   simp,
-  apply dot_step_dot_right
+  intro p,
+  apply dot_step_dot_right p,
 end
 
 end β

@@ -44,11 +44,21 @@ begin
   intros p q,
   exact or.inl ⟨p, q⟩,
 end
+
 theorem dot_step_substitution {f f' g g': utlc} (x: utlc): f →∥ f' → g →∥ g' → f' = Λ x → f·g →∥ x[0:=g'] :=
 begin
   simp [has_parallel_reduction.step, step],
   intros p q fx,
   rw [fx] at p,
+  refine or.inr ⟨x, p, g', q, rfl⟩
+end
+
+theorem dot_step_substitution' {f f' g g' y: utlc} (x: utlc): f →∥ f' → g →∥ g' → f' = Λ x → y = x[0:=g'] → f·g →∥ y :=
+begin
+  simp [has_parallel_reduction.step, step],
+  intros p q fx fy,
+  rw [fx] at p,
+  rw [fy],
   refine or.inr ⟨x, p, g', q, rfl⟩
 end
 

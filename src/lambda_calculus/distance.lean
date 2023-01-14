@@ -42,6 +42,9 @@ begin
     exact distance_le_succ (m_ih p (nat.le_of_lt_succ h)) }
 end
 
+theorem distance_le_mono': n ≤ m → distance_le r n a b → distance_le r m a b :=
+  λ p q, distance_le_mono q p
+
 theorem distance_le_head: distance_le r (n+1) a b → ∃ f, distance_le r 1 a f ∧ distance_le r n f b :=
 begin
   simp [distance_le],

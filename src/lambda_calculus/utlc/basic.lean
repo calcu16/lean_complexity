@@ -35,7 +35,7 @@ by apply utlc.no_confusion
 @[simp] theorem ne_dot_lambda (f g h: utlc) : f·g ≠ Λ h :=
 by apply utlc.no_confusion
 
-@[simp] theorem down_eq_down {n m : ℕ}: (↓n : utlc) = ↓m ↔ n = m :=
+@[simp] theorem down_eq_down_iff {n m : ℕ}: (↓n : utlc) = ↓m ↔ n = m :=
 begin
   split,
   intro p,
@@ -44,7 +44,7 @@ begin
   rw [p]
 end
 
-@[simp] theorem lambda_eq_lambda {f g : utlc}: Λ f = Λ g ↔ f = g :=
+@[simp] theorem lambda_eq_lambda_iff {f g : utlc}: Λ f = Λ g ↔ f = g :=
 begin
   split,
   intro p,
@@ -53,7 +53,7 @@ begin
   rw [p]
 end
 
-@[simp] theorem dot_eq_dot {f f' g g': utlc}: f·g = f'·g' ↔ f = f' ∧ g = g' :=
+@[simp] theorem dot_eq_dot_iff {f f' g g': utlc}: f·g = f'·g' ↔ f = f' ∧ g = g' :=
 begin
   split,
   intros p,
@@ -102,6 +102,12 @@ end
 | (Λ f) := λ n, uses f (n + 1)
 | (f · g) := λ n, uses f n + uses g n
 
+theorem lambda_uses (f: utlc) (n: ℕ): (Λ f).uses n = f.uses (n+1) :=
+by simp
+
+theorem dot_uses (f g: utlc) (n: ℕ): (f·g).uses n = f.uses n + g.uses n :=
+by simp
+
 @[simp] def closed_below : utlc → ℕ → bool
 | (↓m) := λ n, m < n
 | (Λ f) := λ n, f.closed_below (n+1)
@@ -116,10 +122,11 @@ def shift : utlc → ℕ → utlc
 
 instance : has_shift utlc := ⟨ shift ⟩
 
-@[simp] theorem down_shift (m n: ℕ): (↓m)↑¹n = if m < n then (↓m:utlc) else (↓(m+1)) :=
+@[simp] theorem down_shift (m n: ℕ): (↓m)↑¹n = (↓(if m < n then m else m + 1):utlc) :=
 begin
-  unfold has_shift.shift,
-  simp [shift]
+  split_ifs;
+  unfold has_shift.shift;
+  simp [shift, h],
 end
 
 @[simp] theorem lambda_shift (f: utlc) (n: ℕ):  (Λ f) ↑¹ n = Λ(f ↑¹ (n+1)) :=
@@ -146,9 +153,7 @@ instance : has_substitution utlc := ⟨ substitution ⟩
 local notation a `[` b `:=` c  `]` : 70 := has_substitution.substitution a b c
 
 @[simp] theorem down_substitution (m n: ℕ) (g: utlc): (↓m)[n:=g] = if m < n then ↓m else if m = n then g else ↓(m-1) :=
-begin
-  simp[has_substitution.substitution, substitution]
-end
+by simp[has_substitution.substitution, substitution]
 
 @[simp] theorem lambda_substitution (f: utlc) (n: ℕ) (g: utlc): (Λ f)[n:=g] = Λ f[n+1:=g ↑¹ 0] :=
 by simp[has_substitution.substitution, substitution]
@@ -179,11 +184,6 @@ theorem substitution_induction_on (p: utlc → Prop): Π (f: utlc)
   (substitution_induction_on y hn hx hnx hxy hxyz)
   (substitution_induction_on (x·y) hn hx hnx hxy hxyz)
   (substitution_induction_on z hn hx hnx hxy hxyz)
-
-def extension : utlc → ℕ → utlc
-| (↓m) := λ n, if m < n then ↓m else ↓(m + 1)
-| (Λ f) := λ n, Λ f.extension (n + 1)
-| (f·g) := λ n, (f.extension n)·(g.extension n)
 
 end utlc
 end lambda_calculus

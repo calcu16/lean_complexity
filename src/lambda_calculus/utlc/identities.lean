@@ -11,22 +11,21 @@ variables {f g: utlc}
 theorem size_pos (f: utlc): 0 < f.size := by
 { cases f, all_goals { simp}  }
 
-@[simp] theorem shift_inj {f: utlc} (n: nat) {g: utlc}: f ↑¹ n = g ↑¹ n ↔ f = g :=
+@[simp] theorem shift_inj_iff {f: utlc} (n: nat) {g: utlc}: f ↑¹ n = g ↑¹ n ↔ f = g :=
 begin
   split,
   induction f generalizing n g,
-  { cases g,
-    all_goals { simp },
-    all_goals { split_ifs },
-    all_goals { simp },
-    all_goals { intro p, linarith } },
-  { cases g,
-    all_goals { simp },
-    { split_ifs, all_goals { simp } },
+  { cases g;
+    simp,
+    split_ifs;
+    try { { simp } };
+    intro;
+    linarith },
+  { cases g;
+    simp,
     apply f_ih },
-  { cases g,
-    all_goals { simp },
-    { split_ifs, all_goals { simp } },
+  { cases g;
+    simp,
     intros hf hg,
     exact ⟨ f_ih_f _ hf, f_ih_g _ hg ⟩ },
   intro p,
@@ -35,22 +34,12 @@ end
 
 theorem shift_comm (f: utlc): n ≤ m → f ↑¹ n ↑¹ (m+1) = f ↑¹ m ↑¹ n :=
 begin
-  induction f generalizing n m,
-  all_goals { simp },
-  { intro,
-    split_ifs,
-    all_goals { simp },
-    all_goals { split_ifs },
-    any_goals { refl },
-    all_goals { exfalso, linarith },
-  }, {
-    intro,
-    apply f_ih,
-    linarith
-  }, {
-    intro nm,
-    exact ⟨f_ih_f nm, f_ih_g nm⟩
-  }
+  induction f generalizing n m;
+  simp;
+  intro nm,
+  { split_ifs; try { simp }; linarith },
+  { apply f_ih, linarith },
+  { exact ⟨f_ih_f nm, f_ih_g nm⟩ }
 end
 
 theorem shift_comm' (f: utlc) : n < m → f ↑¹ n ↑¹ m = f ↑¹ (m-1) ↑¹ n :=
@@ -65,10 +54,8 @@ end
 
 @[simp] theorem size_shift (f: utlc) (n: ℕ): (f ↑¹ n).size = f.size :=
 begin
-  induction f generalizing n,
-  all_goals { simp },
-  { split_ifs,
-    all_goals { simp } },
+  induction f generalizing n;
+  simp,
   { apply f_ih },
   { rw[f_ih_f, f_ih_g] }
 end
@@ -81,24 +68,25 @@ theorem shift_uses (f: utlc) (n m: ℕ):
 begin
   induction f generalizing n m,
   all_goals { simp[uses] },
-  {
-    cases m,
-    { simp,
-      split_ifs,
-      all_goals { simp },
-      any_goals { intro },
-      any_goals { contradiction },
-      linarith,
-      apply h,
-      simp [zero_lt_iff, h_1, h_2] },
-    { simp [nat.succ_eq_add_one],
-      split_ifs,
-      all_goals { simp },
-      all_goals { intro },
-      any_goals { contradiction },
-      any_goals { linarith },
-      rw [h_3] at h,
-      exact h_2 (eq_of_le_of_not_lt (le_of_not_gt h) h_1) } },
+  { split_ifs;
+    simp only [nat.zero_ne_one, nat.one_ne_zero, eq_self_iff_true];
+    try { linarith };
+    cases m;
+    simp [
+      add_left_inj,
+      not_lt_zero',
+      nat.succ_eq_add_one,
+      zero_tsub,
+      nat.add_sub_cancel] at *;
+    try { contradiction };
+    try { linarith },
+    { apply h_3,
+      apply nat.eq_zero_of_le_zero,
+      rw [← h_4],
+      assumption, },
+    rw [h_4] at h,
+    apply h_3,
+    apply antisymm h h_2 },
   { rw [f_ih],
     simp,
     split_ifs,
@@ -109,9 +97,9 @@ begin
     all_goals { refl } }
 end
 
-theorem shift_uses_lt (f: utlc) {n m: ℕ}: n < m → (f ↑¹ n).uses m = f.uses (m - 1) :=
+theorem shift_uses_lt {n m: ℕ}: n < m → ∀ (f: utlc), (f ↑¹ n).uses m = f.uses (m - 1) :=
 begin
-  intro p,
+  intros p f,
   have h := shift_uses f n m,
   simp [p] at h,
   assumption
@@ -124,7 +112,40 @@ begin
   assumption
 end
 
-theorem uses_of_closed_below (f: utlc) (n : ℕ) : f.closed_below n ↔ ∀ m, n ≤ m → f.uses m = 0 :=
+theorem shift_uses_zero' (f: utlc) (n: ℕ) : (f ↑¹ n).uses n = 0 :=
+begin
+  have h := shift_uses f n n,
+  simp at h,
+  assumption
+end
+
+theorem shift_of_uses {f: utlc} {n: ℕ}: f.uses n = 0 → ∃ g, f = g ↑¹ n :=
+begin
+  induction f generalizing n,
+  all_goals { simp },
+  { intro p,
+    obtain h|h|h := nat.lt_trichotomy f n,
+    { use f, simp [h] },
+    { contradiction },
+    cases f,
+    { simp at h, contradiction },
+    simp [nat.succ_eq_add_one] at *,
+    use f,
+    simp [show ¬ f < n, by linarith] },
+  { intro p,
+    cases f_ih p with g ih,
+    use Λ g,
+    simp,
+    exact ih },
+  { intros p q,
+    cases f_ih_f p with x ihx,
+    cases f_ih_g q with y ihy,
+    use x·y,
+    simp,
+    exact ⟨ ihx, ihy ⟩ }
+end
+
+theorem closed_below_iff_uses_zero (f: utlc) (n : ℕ) : f.closed_below n ↔ ∀ m, n ≤ m → f.uses m = 0 :=
 begin
   induction f with _ _ fh _ _ fh gh generalizing n,
   { simp [closed_below, uses],
@@ -193,10 +214,9 @@ end
 theorem shift_closed_below (m: ℕ):
   f.closed_below n → (f ↑¹ m).closed_below (n+1) :=
 begin
-  induction f generalizing n m,
-  all_goals { simp },
-  { split_ifs,
-    all_goals { simp },
+  induction f generalizing n m;
+  simp,
+  { split_ifs;
     { intro, linarith } },
   { apply f_ih },
   { intros hf hg,
@@ -205,30 +225,30 @@ end
 
 @[simp] theorem index_substitution_zero : (↓n)[n:=f] = f := by simp
 
-theorem substitution_of_uses_zero (g: utlc): f.uses n = 0 → (f ↑¹ n)[n:=g] = f :=
-begin
-  induction f generalizing n g,
-  all_goals { simp[nat.add_assoc] },
-  { intro h,
-    split_ifs,
-    all_goals { simp[*] },
-    simp [show ¬ f + 1 < n, by linarith, show f + 1 ≠ n, by linarith] },
+theorem shift_succ_substitiution_down: (f ↑¹ (n+1))[n:=↓n] = f := begin
+  induction f generalizing n;
+  simp,
+  { split_ifs;
+    try { refl };
+    try { { rw [h_2] } };
+    try {
+      exfalso,
+      apply h_2 (nat.eq_of_lt_succ_of_not_lt h h_1) };
+    { exfalso, linarith } },
   { apply f_ih },
-  { intros hf hg,
-    refine ⟨f_ih_f _ hf, f_ih_g _ hg⟩ }
+  { exact ⟨ f_ih_f, f_ih_g ⟩ }
 end
 
-theorem substitution_of_uses_zero' (g: utlc): (f ↑¹ n).uses n = 0 → (f ↑¹ n)[n:=g] = f :=
+@[simp] theorem substitution_of_shift (f: utlc) (n: ℕ) (g: utlc): (f ↑¹ n)[n:=g] = f :=
 begin
   induction f generalizing n g,
   all_goals { simp[nat.add_assoc] },
-  { intro h,
-    split_ifs,
-    all_goals { simp[*] },
-    simp [show ¬ f + 1 < n, by linarith, show f + 1 ≠ n, by linarith] },
-  { apply f_ih },
-  { intros hf hg,
-    refine ⟨f_ih_f _ hf, f_ih_g _ hg⟩ }
+  { split_ifs,
+    refl,
+    repeat { exfalso, linarith },
+    rw [nat.add_sub_cancel] },
+  { exact f_ih _ _ },
+  { exact⟨ f_ih_f _ _, f_ih_g _ _⟩ }
 end
 
 theorem substitution_identity_of_closed_below (g: utlc): f.closed_below n → f[n:=g] = f :=
@@ -292,10 +312,12 @@ begin
   induction f generalizing n g,
   all_goals { simp },
   { split_ifs,
+    any_goals { refl },
     any_goals { exfalso, linarith },
-    all_goals { simp [*] },
-    simp [nat.eq_of_le_of_lt_succ (le_of_not_lt h) h_1],
-    simp [show f ≠ n, by linarith, show ¬ f + 1 < n, by linarith, show f + 1 ≠ n, by linarith] },
+    any_goals { simp at h_2, contradiction },
+    simp at *,
+    exfalso,
+    exact h_2 (nat.eq_of_le_of_lt_succ h h_3) },
   { apply f_ih },
   { exact ⟨f_ih_f _ _, f_ih_g _ _⟩ }
 end
@@ -329,21 +351,21 @@ begin
   induction f generalizing n m g,
   all_goals { simp },
   { intro mn,
-    split_ifs,
-    any_goals { exfalso, linarith },
-    all_goals { simp[*] },
-    { simp[show f < n +1, by linarith] },
-    cases f,
-    { simp at h,
-      simp [h] at mn,
-      exfalso,
-      apply h_1 (eq.symm h) },
+    split_ifs;
+    try { exfalso, linarith };
+    simp[*];
+    simp at *;
+    try { contradiction },
+    cases f;
+    simp;
+    intro,
+    { apply h_4,
+      apply eq.symm,
+      apply nat.eq_zero_of_le_zero,
+      assumption },
     simp [nat.succ_eq_add_one] at *,
-    contrapose! h_1,
-    simp at h_1,
-    have h_3 := nat.eq_of_le_of_lt_succ h_2 (nat.succ_lt_succ h_1),
-    rw [← h_3] at mn,
-    exact ge_antisymm h mn },
+    have h_5:= lt_of_le_of_ne' h h_1,
+    linarith },
   { simp [nat.add_assoc, ← shift_comm _ (nat.zero_le m)],
     intro,
     apply f_ih,
@@ -366,11 +388,31 @@ begin
   { split_ifs,
     simp [h],
     simp [show ¬ (f + 1 < n), by linarith],
-    intro,
-    exfalso,
+    linarith, exfalso,
+    linarith,
+    simp },
+end
+
+theorem substitution_uses_zero {n m: ℕ} {f g: utlc}: n ≤ m → f[n:=g].uses m = f.uses (m + 1) + f.uses n * g.uses m := 
+begin
+  induction f generalizing n m g;
+  simp,
+  { split_ifs;
+    try { intro, exfalso, linarith };
+    simp;
+    repeat { intro };
+    cases f;
+    simp [nat.succ_eq_add_one] at *;
+    try { contradiction };
+    try { linarith },
+    apply h_1 h.symm },
+  { intro,
+    rw [f_ih],
+    simp [shift_uses],
     linarith },
-  { apply f_ih },
-{ exact ⟨f_ih_f _ _, f_ih_g _ _⟩ }
+  { intro p,
+    rw [f_ih_f p, f_ih_g p],
+    ring }
 end
 
 theorem substitution_index_succ: f.closed_below (n + 1) → f[n:=↓(n+1)] = f ↑¹ n :=
@@ -396,7 +438,7 @@ begin
   { intros hm hg,
     simp,
     split_ifs,
-    any_goals { rw[substitution_of_uses_zero _ hg] },
+    any_goals { simp },
     simp [h, h_1],
     any_goals { intro },
     any_goals { exfalso, linarith},
@@ -449,7 +491,6 @@ begin
     any_goals { exfalso, linarith },
     { exfalso,
       exact h_2 (eq_of_le_of_not_lt (nat.le_of_lt_succ h_3) h_1) },
-    { rw [substitution_of_uses_zero' _ h] },
     cases f,
     { exfalso, linarith },
     simp [nat.succ_eq_add_one] at *,

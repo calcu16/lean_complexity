@@ -1,4 +1,5 @@
 import lambda_calculus.utlc.complexity.basic
+import lambda_calculus.utlc.complexity.instance
 import lambda_calculus.distance
 import lambda_calculus.utlc.basic
 import lambda_calculus.utlc.beta.basic
@@ -11,7 +12,7 @@ namespace complexity
 
 open utlc
 
-theorem add_complexity: complexity_le nat.add (λ n m, (6:ℕ)) :=
+theorem add_complexity_le: complexity_le nat.add (λ n m, (6:ℕ)) :=
 begin
   use encoding.nat.add,
   split,
@@ -21,7 +22,8 @@ begin
   apply utlc.encoding.nat.add_distance_le
 end
 
-theorem pred_complexity: complexity_le nat.pred (λ n, (2*n + 5:ℕ)) :=
+
+theorem pred_complexity_le: complexity_le nat.pred (λ n, (2*n + 5:ℕ)) :=
 begin
   use encoding.nat.pred,
   split,
@@ -31,7 +33,34 @@ begin
   apply utlc.encoding.nat.pred_distance_le
 end
 
-theorem sub_complexity: complexity_le nat.sub
+instance pred_complexity: has_complexity nat.pred :=
+begin
+  fconstructor,
+  fconstructor,
+  swap,
+  apply pred_complexity_le,
+end
+
+instance sub_complexity: has_complexity nat.sub :=
+begin
+  rw [show nat.sub = flip (nat.iterate nat.pred), begin
+    ext1 n, ext1 m,
+    induction m generalizing n,
+    { simp [nat.sub, flip] },
+    simp only [flip, function.iterate_succ_apply', nat.sub, nat.sub_succ, m_ih],
+  end],
+  apply_instance,
+end
+
+-- def sc_cost: ℕ → ℕ → ℕ := λ n m, (2 * n + 15) * m + 5
+-- theorem sc: (complexity nat.sub).always_le sc_cost :=
+-- begin
+--   intros n m,
+--   simp [complexity, sc_cost],
+--   sorry,
+-- end
+
+theorem sub_complexity_le: complexity_le nat.sub
   (cast (by simp) (λ n m, (2 * n + 15) * m + 5)) :=
 begin
   have hsub : nat.sub = (λ n m, nat.pred^[m] n),
@@ -41,7 +70,7 @@ begin
     rw [function.iterate_succ_apply', ← m_ih],
     simp [nat.sub] },
   rw [hsub],
-  apply iteration_complexity_le' pred_complexity,
+  apply iteration_complexity_le' pred_complexity_le,
   refl,
   intros n m,
   induction m,
@@ -61,7 +90,7 @@ begin
   ring_nf,
 end
 
-theorem mul_complexity: complexity_le nat.mul
+theorem mul_complexity_le: complexity_le nat.mul
   (cast (by simp) (λ n m, 27 * m + 39)) :=
 begin
   -- n → m → n*m
@@ -90,7 +119,7 @@ begin
     { -- => (a, n) → n+a
       apply uncurry_complexity_le,
       -- a → n → n+a
-      apply add_complexity,
+      apply add_complexity_le,
       refl,
       intros a n, simp,
       apply show 6 + 3 ≤ (λ an, 9) (a, n), by simp },

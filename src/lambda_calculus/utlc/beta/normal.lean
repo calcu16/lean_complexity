@@ -32,12 +32,12 @@ def maybe_head_reduction_step: utlc → utlc
 theorem maybe_head_reduction_step_is_eq_or_reduction_step (f: utlc):
   f = maybe_head_reduction_step f ∨ f →β (maybe_head_reduction_step f)  :=
 begin
-  cases f,
-  all_goals { simp[maybe_head_reduction_step] },
-  cases f_f,
-  all_goals { simp[maybe_head_reduction_step] },
+  cases f;
+  simp[maybe_head_reduction_step],
+  cases f_f;
+  simp[maybe_head_reduction_step],
   right,
-  apply lambda_dot_step_substitution,
+  apply lambda_dot_step_substitution
 end
 
 def strategic_head_reduction (head head' left left' right right': utlc): reduction_strategy → utlc
@@ -75,7 +75,7 @@ theorem strategic_reduction_step_eq_or_reduction_step (f: utlc): ∀ strategy, f
 begin
   intro s,
   induction f generalizing s,
-  all_goals { simp[strategic_reduction_step] },
+  any_goals { simp [strategic_reduction_step] },
   { apply f_ih },
   obtain h|h|h := strategic_head_reduction_cases _ _ _ _ _ _ s,
   all_goals { rw[h] },
@@ -85,13 +85,13 @@ begin
     simp,
     apply h_1,
     right,
-    apply dot_step_dot_left _ h_1 },
+    apply dot_step_dot_left h_1 },
   { cases f_ih_g _,
     left,
     simp,
     apply h_1,
     right,
-    apply dot_step_dot_right _ h_1 },
+    apply dot_step_dot_right h_1 },
 end
 
 attribute [simp] normal_reduction_step applicative_reduction_step strategic_reduction_step strategic_head_reduction maybe_head_reduction_step reduction_strategy_next
