@@ -1,5 +1,6 @@
 import tactic.basic
 
+-- Useful lemmas for dealing with function types
 lemma ftype {α α': Type} {β β': Type}: α = α' → β = β' → (α → β) = (α' → β') :=
 by { intros p q, rw [p, q] }
 
@@ -14,11 +15,20 @@ lemma fcast: ∀ {α β γ: Type} (f: α → β) (a: α) (h: (β = γ)), (cast h
 
 namespace complexity
 
--- a model is a relation between a program type and a datatype
+/- Complexity is defined in terms of a model of program and data.
+ - The model is provided a function that checks the cost of the computing a given output
+ -  another function that applies some data as an argument to the program
+ - The accepts_with_cost function can only return a single result
+ -
+ - Data can be converted from lean types into the data type using the
+ -  has_encoding class
+ -/
+
 structure model (α β γ: Type) [has_equiv β]  [preorder γ]  [has_add γ] :=
 mk ::
   (accepts_with_cost : α → β → γ → Prop)
   (application : α → β → α)
+  (cost_inj: ∀ {a: α} {b₀ b₁: β} {c₀ c₁: γ}, accepts_with_cost a b₀ c₀ → accepts_with_cost a b₁ c₁ → b₀ ≈ b₁)
   (cost_mono : ∀ {a : α} {b : β} {c₀ c₁ : γ}, c₀ ≤ c₁ → accepts_with_cost a b c₀ → accepts_with_cost a b c₁)
 
 variables {α β γ: Type} [has_equiv β] [preorder γ] [has_add γ]
@@ -131,6 +141,8 @@ instance: has_lift γ (cost_function enf) := ⟨ lift enf ⟩
 
 end cost_function
 
+-- witness checks if the program provided is accepted by the cost function for all inputs
+-- since cost_function is monotonic on the cost, this is a less than or equal relationship
 def witness: Π (a : encodable_function m), α → a.unwrap → (cost_function a) → Prop
 | (encodable_function.result en) := λ prog data, en.model.1 prog (en.encode data)
 | (encodable_function.application en b) := λ prog f cost, ∀ arg : en.type,

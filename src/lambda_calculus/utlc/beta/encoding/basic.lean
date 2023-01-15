@@ -1,6 +1,12 @@
 import lambda_calculus.utlc.beta.distance
 import complexity.basic
 
+/-
+ - Define complexity in terms of the number of β reductions
+ - Programs and data need to be closed,
+ -  additionally data needs to be fully reduced such that equivalence implies equality
+ -/
+
 namespace lambda_calculus
 namespace utlc
 namespace β
@@ -19,6 +25,7 @@ local attribute [reducible] closed
 def distance_model : complexity.model encoded_program encoded_data ℕ :=
  ⟨ λ prog data cost, distance_le cost prog.value data.value,
    λ prog data, ⟨ prog.value·data.value, by simp [closed, prog.proof, data.proof.left] ⟩,
+   λ prog x y cx cy hx hy, reduced_equiv_inj x.proof.right y.proof.right (equiv_trans (equiv_symm (equiv_of_distance_le hx)) (equiv_of_distance_le hy)),
    λ prog data c₀ c₁, distance_le_mono' ⟩
 
   
