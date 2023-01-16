@@ -163,6 +163,21 @@ by simp[has_substitution.substitution, substitution]
 
 @[simp] theorem substitution_notation (f: utlc) (n: ℕ) (g: utlc): f.substitution n g = f[n:=g] := rfl
 
+
+def simp_rec {α: Type} (down: ℕ → α) (lambda: utlc → α → α) (dot: utlc → utlc → α → α → α): utlc → α
+| (↓n) := down n
+| (Λ f) := lambda f (simp_rec f)
+| (f·g) := dot f g (simp_rec f) (simp_rec g)
+
+@[simp] theorem simp_rec_down {α: Type} (down: ℕ → α) (lambda: utlc → α → α) (dot: utlc → utlc → α → α → α) (n: ℕ):
+  simp_rec down lambda dot (↓n) = down n := by simp[simp_rec]
+
+@[simp] theorem simp_rec_lambda {α: Type} (down: ℕ → α) (lambda: utlc → α → α) (dot: utlc → utlc → α → α → α) (f: utlc):
+  simp_rec down lambda dot (Λ f) = lambda f (simp_rec down lambda dot f) := by simp[simp_rec]
+  
+@[simp] theorem simp_rec_dot {α: Type} (down: ℕ → α) (lambda: utlc → α → α) (dot: utlc → utlc → α → α → α) (f g: utlc):
+  simp_rec down lambda dot (f·g) =  dot f g (simp_rec down lambda dot f) (simp_rec down lambda dot g) := by simp[simp_rec]
+
 -- inductive hypothesis useful when dealing with substitutions
 -- splits f·g up to handle the (Λ f)·g ⇔ f[0:=g] case
 theorem substitution_induction_on (p: utlc → Prop): Π (f: utlc)

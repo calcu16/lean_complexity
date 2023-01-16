@@ -131,25 +131,72 @@ def add: Π {enf: encodable_function m}, cost_function enf → cost_function enf
 | (encodable_function.result _) := λ n m: γ, (n + m: γ)
 | (encodable_function.application _ _) := λ f g a, add (f a) (g a)
 
-instance: has_add (cost_function enf) := ⟨ add ⟩
+instance add_costs: has_add (cost_function enf) := ⟨ add ⟩
 
 def lift: Π (enf: encodable_function m), γ → cost_function enf
 | (encodable_function.result _) := λ c, c
 | (encodable_function.application _ enf) := λ c _, lift enf c
 
-instance: has_lift γ (cost_function enf) := ⟨ lift enf ⟩
+instance lift_costs: has_lift γ (cost_function enf) := ⟨ lift enf ⟩
+
+-- theorem add_lift 
+--   {φ: Type} [en: has_encoding m φ]
+--   {ψ: Type} [enf: has_encodable_function m (φ → ψ)]
+--   (cf: cost_function enf.) (c: γ):
+-- begin
+--  apply @eq (cost_function (encodable_function.application en.value enf)),
+--  apply has_add.add _ _,
+--  apply_instance,
+--  exact (λ b, cf),
+--  apply cost_function.lift begin
+--   apply has_encodable_function.value.value,
+--   swap,
+  
+--  end,
+--  apply c,
+--  refine (λ b, _),
+--  apply has_add.add _ _,
+--  apply_instance,
+--  apply cf,
+--  apply cost_function.lift,
+--  apply c,
+-- end
+-- :=
+-- begin
+--   ext1,
+--   simp [has_add.add, add, has_lift.lift, lift],
+-- end
 
 end cost_function
 
 -- witness checks if the program provided is accepted by the cost function for all inputs
 -- since cost_function is monotonic on the cost, this is a less than or equal relationship
-def witness: Π (a : encodable_function m), α → a.unwrap → (cost_function a) → Prop
+def witness: Π (enf : encodable_function m), α → enf.unwrap → (cost_function enf) → Prop
 | (encodable_function.result en) := λ prog data, en.model.1 prog (en.encode data)
 | (encodable_function.application en b) := λ prog f cost, ∀ arg : en.type,
   witness b (encoding.application en prog arg) (f arg) (cost arg)
 
+theorem witness_trans (enf: encodable_function m) {cf cg: cost_function enf}:
+  ∀ {prog: α} {f: enf.unwrap}, cf ≤ cg → witness enf prog f cf → witness enf prog f cg :=
+begin
+  induction enf generalizing cf cg;
+  intros prog f hc,
+  { exact model.cost_mono m hc },
+  intros hf arg,
+  exact enf_ih (hc _) (hf _),
+end
+  
+
 def complexity_le [enf: has_encodable_function m δ] (f: δ) (cf: cost_function enf.value.value) :=
   ∃ prog: α, witness enf.value.value prog (cast_unwrap f) cf
+
+theorem complexity_le_trans (m: model α β γ) [enf: has_encodable_function m δ] {f: δ} {cf cg: cost_function enf.value.value}:
+  cf ≤ cg → complexity_le f cf → complexity_le f cg :=
+begin
+  intros mono hcf,
+  cases hcf with prog witness,
+  exact ⟨prog, witness_trans _ mono witness⟩
+end
 
 structure is_complexity (m: model α β γ) {δ: Type} [has_encodable_function m δ] (f: δ) :=
 mk ::
@@ -178,3 +225,9 @@ instance {α β γ: Type} [has_equiv β] [preorder γ] [has_add γ] (m: complexi
   (δ: Type) [complexity.has_encodable_function m δ]:
   has_le (complexity.cost_function' m δ) :=
   ⟨ complexity.cost_function.less_than_or_equal ⟩
+
+def complexity_of_instance {α β γ: Type} [has_equiv β] [preorder γ] [has_add γ]
+  (m: complexity.model α β γ) {δ: Type} [enf: complexity.has_encodable_function m δ]
+  (f: δ) [c: complexity.has_complexity m f] (cf: complexity.cost_function' m δ):
+  c.value.cost ≤ cf → complexity.complexity_le f cf :=
+ λ mono, complexity.complexity_le_trans m mono c.value.proof

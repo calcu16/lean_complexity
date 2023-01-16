@@ -75,6 +75,15 @@ begin
   apply distance_le_trans hab hbc
 end
 
+theorem distance_le_trans_sub (n m: ℕ):
+  distance_le r n a b → distance_le r (m - n) b c → n ≤ m → distance_le r m a c :=
+begin
+  intros hab hbc hnm,
+  apply distance_le_trans' _ _ hab hbc,
+  rw [nat.add_comm],
+  apply nat.sub_add_cancel hnm,
+end
+
 theorem distance_le_symm: distance_le r n a b → distance_le r n b a :=
 begin
   induction n generalizing a b,

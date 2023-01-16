@@ -30,43 +30,42 @@ instance prod_encoding {α β: Type*}
   ⟨ ⟨ λ ab, pair (f.value.encode ab.fst) (g.value.encode ab.snd),
       by intros x y; cases x; cases y; simp [pair, and_imp] ⟩ ⟩
 
-def alternative {n m: ℕ} (h: n < m) (f: encoded_data): encoded_data := ⟨
-  ( λ x, Λ x)^[m] (↓n·f.value),
-    begin
-      split,
-      { cases nat.exists_eq_add_of_le (nat.succ_le_of_lt h) with y h,
-        rw [h, add_comm, function.iterate_add_apply],
-        clear h h,
-        apply show ∀ y (f: utlc), f.closed → ((λ x :utlc, Λ x)^[y] f).closed,
-        begin
-          intro y,
-          induction y,
-          { simp },
-          intros f hf,
-          simp [function.iterate_succ', function.comp_app,
-            lambda_reduced_iff, closed, closed_below, add_zero,
-            closed_below_mono (y_ih f hf)],
-        end,
-        apply show ∀ n (f: utlc), f.closed_below n → ((λ x :utlc, Λ x)^[n] f).closed,
-        begin
-          intro n,
-          induction n,
-          { simp },
-          intros f hf,
-          simp only [function.iterate_succ, function.comp_app,
-            n_ih (Λ f) (by simp [hf])],
-        end,
-        simp [nat.lt_succ_self],
-      },
-      clear h,
-      induction m,
-      { simp },
-      simp only [function.iterate_succ', function.comp_app, lambda_reduced_iff, m_ih]
-    end ⟩
+
+def alternative (n m: ℕ) (f: encoded_data): encoded_data := ⟨
+  ( λ x, Λ x)^[(m - 1) + 1] (↓(m - 1 - n)·f.value),
+begin
+  cases m,
+  { simp },
+  simp,
+  split,
+  apply show ∀ n (f: utlc), f.closed_below n → ((λ x :utlc, Λ x)^[n] f).closed,
+  begin
+    intro n,
+    induction n,
+    { simp },
+    intros f hf,
+    simp only [function.iterate_succ, function.comp_app,
+      n_ih (Λ f) (by simp [hf])],
+  end,
+  simp,
+  apply lt_of_le_of_lt (nat.sub_le _ _) (nat.lt_succ_self _),
+  apply show ∀ n (f: utlc), β.reduced f → β.reduced ((λ x :utlc, Λ x)^[n] f),
+  begin
+    intro n,
+    induction n,
+    { simp },
+    intros f hf,
+    simp only [function.iterate_succ, function.comp_app],
+    apply n_ih,
+    simp,
+    apply hf,
+  end,
+  simp,
+end ⟩
 
 namespace either
-@[simp] def left: encoded_data → encoded_data := alternative (show 0 < 2, by simp)
-@[simp] def right: encoded_data → encoded_data := alternative (show 1 < 2, by simp)
+@[simp] def left: encoded_data → encoded_data := alternative 0 2
+@[simp] def right: encoded_data → encoded_data := alternative 1 2
 end either
 
 instance sum_encoding {α β: Type*} [f: complexity.has_encoding distance_model α] [g: complexity.has_encoding distance_model β]:

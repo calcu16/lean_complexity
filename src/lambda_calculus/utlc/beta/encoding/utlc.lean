@@ -10,9 +10,9 @@ namespace encoding
 namespace utlc
 
 def encode_utlc: utlc → encoded_data
-| (↓n) := alternative (show 0 < 3, by simp) (complexity.encode distance_model n)
-| (Λ f) := alternative (show 1 < 3, by simp) (encode_utlc f)
-| (f·g) := alternative (show 2 < 3, by simp) (pair (encode_utlc f) (encode_utlc g))
+| (↓n) := alternative 0 3 (complexity.encode distance_model n)
+| (Λ f) := alternative 1 3 (encode_utlc f)
+| (f·g) := alternative 2 3 (pair (encode_utlc f) (encode_utlc g))
 
 instance: complexity.has_encoding distance_model utlc := ⟨ ⟨ encode_utlc,
   begin
