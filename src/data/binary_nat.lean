@@ -3,7 +3,6 @@ import tactic.linarith
 import tactic.hint
 
 namespace data
-namespace binary_nat
 
 inductive btree (α: Type*)
 | leaf (v: α): btree
@@ -61,14 +60,6 @@ begin
   rw [h₀, h₁, h],
 end
 
-example : ∀ a b : bool, (a → b) → (b → a) → a = b :=
-begin
-  intros a b,
-  cases a;
-  cases b;
-  simp,
-end
-
 @[simp]
 theorem balanced_leaf (a: α): balanced (btree.leaf a) := by simp[balanced, height]
 
@@ -99,9 +90,18 @@ theorem balanced_of_intro {b₀ b₁: btree α}:
   balanced b₀ → balanced b₁ →  height b₀ min = height b₁ min → balanced (btree.intro b₀ b₁):=
 begin intros p q h, rw[balanced_intro], simp[p, q, h] end
 
-def has_element [decidable_eq α]: btree α → α → bool
+def has_element: btree α → α → Prop
 | (btree.leaf a) := λ v, a = v
 | (btree.intro lhs rhs) := λ v, has_element lhs v ∨ has_element rhs v
+
+instance has_element.decidable (α: Type*) [decidable_eq α] (b: btree α) (v: α): decidable (has_element b v) :=
+begin
+  induction b,
+  unfold has_element,
+  apply_instance,
+  unfold has_element,
+  apply @or.decidable _ _ b_ih_lhs b_ih_rhs,
+end
 
 def map (f: α → β): btree α → btree β
 | (btree.leaf a) := btree.leaf (f a)
@@ -152,21 +152,32 @@ begin
   simp [extend_left', balanced_intro, n_ih],
 end
 
+theorem extend_left_balanced' (b: btree α) (v: α) (n: ℕ): balanced b → balanced (extend_left b v n) :=
+by simp
+
 def match_height (b₀ b₁: btree α) (op: ℕ → ℕ → ℕ) (v: α): btree α :=
   extend_left b₀ v (height b₁ op - height b₀ op)
 
-theorem match_height_le {b₀ b₁: btree α}  {op: ℕ → ℕ → ℕ} (h₀: ∀ a, op a a = a) (h₁: height b₀ op ≤ height b₁ op) (v: α):
+theorem match_height_le {b₀ b₁: btree α}  (op: ℕ → ℕ → ℕ) (h₀: ∀ a, op a a = a) (h₁: height b₀ op ≤ height b₁ op) (v: α):
    height (match_height b₀ b₁ op v) op = height b₁ op :=
 begin
   unfold match_height,
   rw [@extend_left_height _ _ op h₀, nat.add_comm, nat.sub_add_cancel h₁],
 end
 
-theorem match_height_ge {b₀ b₁: btree α}  {op: ℕ → ℕ → ℕ} (h₀: ∀ a, op a a = a) (h₁: height b₁ op ≤ height b₀ op) (v: α):
+theorem match_height_ge {b₀ b₁: btree α} (op: ℕ → ℕ → ℕ) (h₀: ∀ a, op a a = a) (h₁: height b₁ op ≤ height b₀ op) (v: α):
    height (match_height b₀ b₁ op v) op = height b₀ op :=
 begin
   unfold match_height,
   rw [@extend_left_height _ _ op h₀, nat.sub_eq_zero_of_le h₁, nat.add_zero],
+end
+
+theorem match_height_max {b₀ b₁: btree α} (op: ℕ → ℕ → ℕ) (h₀: ∀ a, op a a = a) (v: α):
+   height (match_height b₀ b₁ op v) op = max (height b₀ op) (height b₁ op) :=
+begin
+  apply eq.symm,
+  cases le_total (height b₀ op) (height b₁ op);
+  simp [max_eq_iff, h, match_height_le op h₀ h, match_height_ge op h₀ h]
 end
 
 theorem match_height_sound (b₀ b₁: btree α) {op: ℕ → ℕ → ℕ} (h: ∀ a, op a a = a) (v: α):
@@ -221,77 +232,121 @@ begin
   rw [add_with_carry_height, add_with_carry_height],
 end
 
-def minimize [decidable_eq α]: btree α → α → btree α
-| (btree.leaf v) := λ _, (btree.leaf v)
-| (btree.intro lhs rhs) := λ a,
-  if has_element lhs a
-  then (btree.intro lhs rhs)
-  else minimize rhs a
+-- def minimize [decidable_eq α]: btree α → α → btree α
+-- | (btree.leaf v) := λ _, (btree.leaf v)
+-- | (btree.intro lhs rhs) := λ a,
+--   if has_element lhs a
+--   then (btree.intro lhs rhs)
+--   else minimize rhs a
 
-def minimal_height [decidable_eq α]: (btree α) → α → bool
-| (btree.leaf a) := λ _, tt
-| (btree.intro lhs _) := λ a, has_element lhs a
+-- def minimal_height [decidable_eq α]: (btree α) → α → bool
+-- | (btree.leaf a) := λ _, tt
+-- | (btree.intro lhs _) := λ a, has_element lhs a
 
-@[simp]
-theorem minimal_height_of_minimized  [decidable_eq α] (b: btree α) (a: α):
-  minimal_height (minimize b a) a :=
-begin
-  induction b,
-  { simp [minimal_height, minimize] },
-  cases h: (has_element b_lhs a);
-  simp [minimize, minimal_height, h, b_ih_rhs],
-end
+-- @[simp]
+-- theorem minimal_height_of_minimized  [decidable_eq α] (b: btree α) (a: α):
+--   minimal_height (minimize b a) a :=
+-- begin
+--   induction b,
+--   { simp [minimal_height, minimize] },
+--   by_cases h: (has_element b_lhs a);
+--   simp [minimize, minimal_height, h, b_ih_rhs],
+-- end
 
-theorem balanced_of_minimized [decidable_eq α] {b: btree α} (a: α) :
-  balanced b → balanced (minimize b a) :=
-begin
-  induction b,
-  simp [balanced, minimize],
-  cases h: (has_element b_lhs a);
-  simp [minimize, minimal_height, h, balanced_intro];
-  intros hl hr h,
-  apply b_ih_rhs hr,
-  exact ⟨hl, hr, h⟩,
-end
+-- theorem balanced_of_minimized [decidable_eq α] {b: btree α} (a: α) :
+--   balanced b → balanced (minimize b a) :=
+-- begin
+--   induction b,
+--   simp [balanced, minimize],
+--   by_cases h: (has_element b_lhs a);
+--   simp [minimize, minimal_height, h, balanced_intro];
+--   intros hl hr h,
+--   apply b_ih_rhs hr,
+--   exact ⟨hl, hr, h⟩,
+-- end
 end btree
 
 structure binary_nat :=
 mk ::
+  (height: ℕ)
   (data: btree bool)
-  (proof: data.balanced ∧ data.minimal_height tt)
+  (proof: data.balanced ∧ height = data.height min)
 
 namespace binary_nat
-end binary_nat
 
 @[pattern] def leaf: bool → binary_nat
-| bit := ⟨ (btree.leaf bit), ⟨ rfl, rfl ⟩ ⟩
+| bit := ⟨ 0, (btree.leaf bit), ⟨ rfl, rfl ⟩ ⟩
 
-@[pattern] def intro: Π (x y: binary_nat), x.data.has_element tt → (x.data.height min = y.data.height min) → binary_nat
-| ⟨ dx, ⟨ hbx, _ ⟩ ⟩ ⟨ dy, ⟨ hby, _ ⟩ ⟩ h₀ h₁ := ⟨ (btree.intro dx dy), btree.balanced_of_intro hbx hby h₁, h₀ ⟩
+@[pattern] def intro: Π (x y: binary_nat), (x.height = y.height) → binary_nat
+| ⟨hx, dx, pfbx, pfhx ⟩ ⟨hy, dy, pfby, pfhy ⟩ h :=
+  ⟨ hx + 1,
+    btree.intro dx dy,
+    btree.balanced_of_intro pfbx pfby (by simp only [binary_nat.height] at h; simp [h, ← pfhx, ← pfhy]),
+    by unfold btree.height; simp only [binary_nat.height] at h; simp [h, ← pfhx, ← pfhy] ⟩
 
-@[simp] theorem leaf_ne_intro (bit: bool) (x y: binary_nat) (h₀: x.data.has_element tt) (h₁: x.data.height min = y.data.height min):
-  leaf bit ≠ intro x y h₀ h₁ :=
-by rcases x with ⟨_, _, _⟩; rcases y with ⟨_, _, _⟩; simp [leaf, intro]
+def intro' (x y: binary_nat): binary_nat :=
+  ⟨ max x.height y.height + 1,
+    btree.intro (btree.match_height x.data y.data min ff) (btree.match_height y.data x.data min ff),
+    begin
+      apply btree.balanced_of_intro,
+      rw [btree.match_height_balanced],
+      apply x.proof.left,
+      rw [btree.match_height_balanced],
+      apply y.proof.left,
+      apply btree.match_height_sound,
+      apply min_self,
+    end,
+    begin
+      unfold btree.height,
+      rw [add_right_cancel_iff, btree.match_height_sound, min_self, x.proof.right, y.proof.right, btree.match_height_max min],
+      apply max_comm,
+      apply min_self,
+      apply min_self,
+    end ⟩
 
-@[simp] theorem intro_ne_leaf (bit: bool)  (x y: binary_nat) (h₀: x.data.has_element tt) (h₁: x.data.height min = y.data.height min):
-  intro x y h₀ h₁ ≠ leaf bit :=
-by rcases x with ⟨_, _, _⟩; rcases y with ⟨_, _, _⟩; simp [leaf, intro]
+@[simp] theorem leaf_ne_intro (bit: bool) (x y: binary_nat) (h: x.height = y.height):
+  leaf bit ≠ intro x y h :=
+by rcases x with ⟨_, _, _, _⟩; rcases y with ⟨_, _, _, _⟩; simp [leaf, intro]
 
-def add (x y: binary_nat): binary_nat :=
-begin
-  let x' := x.data.match_height y.data max ff,
-  let y' := y.data.match_height x.data max ff,
-  let cz := x'.add_with_carry y' ff,
-  fconstructor,
-  apply btree.minimize _ tt,
-  apply btree.intro,
-  apply btree.match_height (btree.leaf cz.fst) cz.snd max ff ,
-  apply cz.snd,
-  simp only [cz, x', y'],
-  refine ⟨btree.balanced_of_minimized _ _, btree.minimal_height_of_minimized _ _⟩,
-  simp [btree.balanced_intro, btree.match_height_balanced, btree.add_with_carry_balanced, x.proof,
-        btree.match_height, ← btree.balanced_def']
-end
+@[simp] theorem intro_ne_leaf (x y: binary_nat) (h: x.height = y.height) (bit: bool):
+  intro x y h ≠ leaf bit := ne.symm (leaf_ne_intro bit x y h)
+
+
+
+
+-- def iszero: binary_nat → Prop
+-- | (leaf v) :=
+
+-- def add (x y: binary_nat): binary_nat :=
+-- begin
+--   let x' := x.data.match_height y.data max ff,
+--   let y' := y.data.match_height x.data max ff,
+--   let cz := x'.add_with_carry y' ff,
+--   apply ite cz.fst,
+--   apply intro',
+--   apply leaf tt,
+--   fconstructor,
+--   apply x.height,
+--   apply cz.snd,
+--   simp [cz, x', y', x.proof,
+--     btree.add_with_carry_balanced, btree.match_height_balanced,
+--     btree.add_with_carry_height],
+
+
+
+-- end
+--   apply intro,
+--   rotate,
+--   fconstructor,
+--   apply x'.height + 1,
+--   apply btree.intro,
+--   apply btree.match_height (btree.leaf cz.fst) cz.snd max ff ,
+--   apply cz.snd,
+--   simp only [cz, x', y'],
+--   refine ⟨btree.balanced_of_minimized _ _, btree.minimal_height_of_minimized _ _⟩,
+--   simp [btree.balanced_intro, btree.match_height_balanced, btree.add_with_carry_balanced, x.proof,
+--         btree.match_height, ← btree.balanced_def']
+-- end
 
 -- def mul (x y: binary_nat): binary_nat :=
 -- | (binary_nat.leaf a) (binary_nat.leaf b) := sorry
