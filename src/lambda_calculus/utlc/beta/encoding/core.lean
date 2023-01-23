@@ -42,7 +42,7 @@ begin
   begin
     intro n,
     induction n,
-    { simp },
+    { simp [closed] },
     intros f hf,
     simp only [function.iterate_succ, function.comp_app,
       n_ih (Λ f) (by simp [hf])],

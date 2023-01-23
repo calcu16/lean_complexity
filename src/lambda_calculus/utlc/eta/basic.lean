@@ -107,7 +107,7 @@ end
 theorem reduction_step_shift (n: ℕ): f ↑¹ n →η g ↑¹ n → f →η g :=
 begin
   induction f generalizing g n,
-  { simp },
+  { simp[down_shift] },
   { simp,
     intro p,
     cases lambda_step_cases p with x p,
@@ -116,7 +116,7 @@ begin
       have h: (g ↑¹ n).uses n = x.uses (n + 1),
       { simp [hgx, uses] },
       have h: ∃ y, x = y ↑¹ (n+1),
-      { apply shift_of_uses,
+      { apply shift_of_uses_zero,
         rw [← h],
         simp [shift_uses] },
       cases h with y hy,

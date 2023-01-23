@@ -28,22 +28,38 @@ def distance_model : complexity.model encoded_program encoded_data ℕ :=
    λ prog x y cx cy hx hy, reduced_equiv_inj x.proof.right y.proof.right (equiv_trans (equiv_symm (equiv_of_distance_le hx)) (equiv_of_distance_le hy)),
    λ prog data c₀ c₁, distance_le_mono' ⟩
 
+@[simp] theorem program_is_closed (a: encoded_program):
+  a.value.closed := a.proof
+
+@[simp] theorem program_is_closed_below (a: encoded_program):
+  ∀ n, a.value.closed_below n :=
+  λ n, closed_below_mono' a.proof (nat.zero_le _)
+
+@[simp] theorem program_ignores_shift (a: encoded_program) (n: ℕ):
+  a.value ↑¹ n = a.value := by rw [shift_of_closed a.proof]
+
+@[simp] theorem program_ignores_substitution (a: encoded_program) (n: ℕ) (g: utlc):
+  has_substitution.substitution a.value n g = a.value := by rw [substitution_of_closed a.proof]
   
+
+@[simp] theorem data_is_closed (a: encoded_data):
+  a.value.closed := a.proof.left
+
 @[simp] theorem data_is_closed_below (a: encoded_data):
   ∀ n, a.value.closed_below n :=
-  λ n, closed_below_mono a.proof.left (nat.zero_le _)
+  λ n, closed_below_mono' a.proof.left (nat.zero_le _)
 
 @[simp] theorem data_is_closed_below' {α: Type}
   [f: complexity.has_encoding distance_model α]
   (a: α) : ∀ n, (f.value.encode a).value.closed_below n :=
-  λ n, closed_below_mono (f.value.encode a).proof.left (nat.zero_le _)
+  λ n, closed_below_mono' (f.value.encode a).proof.left (nat.zero_le _)
 
 @[simp] theorem data_is_reduced (a: encoded_data):
-   reduced_of head_reduced a.value := a.proof.right
+   reduced a.value := a.proof.right
 
 @[simp] theorem data_is_reduced' {α: Type}
   [f: complexity.has_encoding distance_model α]
-  (a: α) : reduced_of head_reduced (f.value.encode a).value :=
+  (a: α) : reduced (f.value.encode a).value :=
   (f.value.encode a).proof.right
 
 @[simp] theorem value_inj (a b: encoded_data):
@@ -53,6 +69,12 @@ def distance_model : complexity.model encoded_program encoded_data ℕ :=
   [f: complexity.has_encoding distance_model α] (a b: α):
   (f.value.encode a).value = (f.value.encode b).value ↔ a = b :=
 by rw [← value_inj, complexity.encoding.inj_iff]
+
+@[simp] theorem data_ignores_shift (a: encoded_data) (n: ℕ):
+  a.value ↑¹ n = a.value := by rw [shift_of_closed a.proof.left]
+
+@[simp] theorem data_ignores_substitution (a: encoded_data) (n: ℕ) (g: utlc):
+  has_substitution.substitution a.value n g = a.value := by rw [substitution_of_closed a.proof.left]
 
 end encoding
 end β

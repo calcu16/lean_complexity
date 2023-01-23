@@ -36,8 +36,8 @@ instance nat_encoding:
       begin
         induction n,
         { simp [iterate] },
-        simp only [iterate, reduced, lambda_reduced, closed, closed_below,
-          zero_add, one_add_one_eq_two] at n_ih,
+        simp only [iterate, lambda_reduced, lambda_closed_below,
+          zero_add, one_add_one_eq_two, closed] at n_ih,
         simp [function.iterate_succ', iterate, n_ih],
       end
     ⟩,

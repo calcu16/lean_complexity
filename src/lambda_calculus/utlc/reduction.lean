@@ -34,19 +34,20 @@ begin
   { intros p q hp hq,
     cases hp;
     cases hq;
-    simp [hp, hq];
+    simp only [hp, hq];
     apply_instance },
   have dand : ∀ (p q : Prop), decidable p → decidable q → decidable (p ∧ q),
   { intros p q hp hq,
     cases hp;
     cases hq;
-    simp [hp, hq];
+    simp only [hp, hq];
     apply_instance },
   intro f,
   induction f;
   intro g;
   cases g;
-  simp;
+  simp only [down_notation, lambda_notation, dot_notation,
+    reduction_step_of, reduction_step];
   repeat { apply dor };
   repeat { apply dand };
   try { apply_instance },
@@ -226,15 +227,14 @@ end
 theorem uses_zero_reduction_step  (h: ∀ {f g}, head_step f g → ∀ {n}, f.uses n = 0 → g.uses n = 0):
   (reduction_step_of head_step f g) → ∀ {n}, f.uses n = 0 → g.uses n = 0 :=
 begin
-  induction f generalizing g;
-  simp only [down_notation, lambda_notation, dot_notation];
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing g;
   intro p;
   try { rw [down_reduction_step_iff] at p };
   try { rw [lambda_reduction_step_iff] at p, obtain p|p := p };
   try { rw [dot_reduction_step_iff] at p, obtain p|p|p := p };
   try { { apply @h _ _ p } };
   rcases p with ⟨x, hg, hf⟩;
-  simp [hg];
+  simp only [hg, dot_uses, add_eq_zero_iff, and_imp];
   intro n,
   { apply f_ih hf },
   { intros p q, exact ⟨ f_ih_f hf p, q ⟩ },
@@ -244,16 +244,17 @@ end
 theorem uses_reduction_step_uses (h: ∀ {f} {g}, head_step f g → ∀ n, f.uses n = g.uses n):
   (reduction_step_of head_step f g) → ∀ n, f.uses n = g.uses n :=
 begin
-  induction f generalizing g;
-  simp only [down_notation, lambda_notation, dot_notation];
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing g;
   intro p;
   try { rw [down_reduction_step_iff] at p };
   try { rw [lambda_reduction_step_iff] at p, obtain p|p := p };
   try { rw [dot_reduction_step_iff] at p, obtain p|p|p := p };
   try { { apply h p } };
   rcases p with ⟨x, hg, hf⟩;
-  simp [hg],
-  { intro n, apply f_ih hf },
+  intro n;
+  simp only [hg, lambda_uses, dot_uses, and_imp,
+    add_eq_zero_iff, add_left_cancel_iff, add_right_cancel_iff],
+  { apply f_ih hf },
   { apply f_ih_f hf },
   { apply f_ih_g hf }
 end
@@ -273,44 +274,10 @@ theorem shift_reduction_step_shift_iff: (∀ f g n, head_step (f ↑¹ n) (g ↑
   (reduction_step_of head_step (f ↑¹ n) (g ↑¹ n) ↔ reduction_step_of head_step f g) :=
 begin
   intro p,
-  induction f generalizing n g;
-  simp;
-  conv_rhs { rw [← p _ _ n] };
-  simp,
-  { apply or_congr,
-    { refl },
-    split;
-    intro p,
-    { cases p with x p,
-      cases @shift_of_uses x (n+1) (by rw [← lambda_uses, ←p.left]; simp [shift_uses]) with y q,
-      use y,
-      rw [q] at p,
-      rw [← shift_inj_iff n, ← @f_ih (n + 1)],
-      simp [p] },
-    { cases p with x p,
-      use x ↑¹ (n + 1),
-      simp [p, f_ih] } },
-  { apply or_congr,
-    refl,
-    apply or_congr;
-    split;
-    intro p;
-    cases p with x p;
-    try { { use x ↑¹ n, simp [p, f_ih_f, f_ih_g] } },
-    { cases @shift_of_uses x n begin
-        conv_lhs { rw [← add_zero (x.uses n), ← shift_uses_zero' f_g n, ← dot_uses, ←p.left] };
-        apply shift_uses_zero'
-      end with y q,
-      use y,
-      rw [← shift_inj_iff n, ← @f_ih_f n],
-      simp [← q, p] },
-    { cases @shift_of_uses x n begin
-        conv_lhs { rw [← zero_add (x.uses n), ← shift_uses_zero' f_f n, ← dot_uses, ←p.left] };
-        apply shift_uses_zero'
-      end with y q,
-      use y,
-      rw [← shift_inj_iff n, ← @f_ih_g n],
-      simp [← q, p] } },
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing n g,
+  { simpa[down_shift] using p (↓f) g n },
+  { simp [← p (Λ f_f) g n, shift_eq_lambda_iff, f_ih] },
+  { simp [← p (f_f·f_g) g n, shift_eq_dot_iff, f_ih_f, f_ih_g, and.left_comm] }
 end
 
 theorem shift_refl_trans_reduction_shift: (∀ f g n, head_step (f ↑¹ n) (g ↑¹ n) ↔ head_step f g) → 
@@ -327,16 +294,17 @@ local notation a `[` b `:=` c  `]` : 70 := has_substitution.substitution a b c
 theorem substitution_reduction_step_left (f: utlc) (hf: ∀ {f f'}, head_step f f' → ∀ n g, relation.refl_trans_gen (reduction_step_of head_step) (f[n:=g]) (f'[n:=g])): reduction_step_of head_step f f' →
   ∀ n g, relation.refl_trans_gen (reduction_step_of head_step) (f[n:=g]) (f'[n:=g]) :=
 begin
-  induction f generalizing f';
-  simp;
-  intros p n g,
-  { apply hf p },
-  { cases p,
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing f';
+  simp only [down_reduction_step_iff, lambda_reduction_step_iff, dot_reduction_step_iff],
+  { apply hf },
+  { intros p n g,
+    cases p,
     { apply hf p },
     rcases p with ⟨x, hfx', hfx⟩,
     rw [hfx'],
     exact lambda_refl_trans_reduction_step_lambda (f_ih hfx _ _) },
-  { obtain p|p|p := p,
+  { intros p n g,
+    obtain p|p|p := p,
     { apply hf p },
     { rcases p with ⟨x, hfx', hfx⟩,
       rw [hfx'],
@@ -349,14 +317,13 @@ end
 theorem substitution_reduction_step_right (f: utlc) (hf: ∀ f g n, head_step (f ↑¹ n) (g ↑¹ n) ↔ head_step f g): reduction_step_of head_step g g' →
   ∀ n, relation.refl_trans_gen (reduction_step_of head_step) (f[n:=g]) (f[n:=g']) :=
 begin
-  induction f generalizing g g';
-  simp;
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing g g';
   intros p n,
-  { split_ifs,
-    refl,
-    apply relation.refl_trans_gen.single,
-    apply p,
-    refl },
+  { obtain h|h|h := nat.lt_trichotomy f n,
+    { simp [h] },
+    { apply relation.refl_trans_gen.single,
+      simpa [h] using p },
+    { simp [lt_asymm h, ne_of_gt h] } },
   { apply lambda_refl_trans_reduction_step_lambda,
     apply f_ih,
     rw shift_reduction_step_shift_iff,
@@ -399,22 +366,13 @@ by { cases f; simp; repeat {intro }; assumption}
 
 theorem reduced_iff_not_reduction_step: (∀ f, head_pred f ↔ ∀ g, ¬ head_step f g) → (∀ f, reduced_of head_pred f ↔ ∀ g, ¬ reduction_step_of head_step f g) :=
 begin
+  have hforall : ∀ (f : utlc → utlc) (p: utlc → Prop), (∀ x y, x = f y → p y) ↔ (∀ y, p y) :=
+      λ f p, ⟨ λ q x, q (f x) x rfl, λ p x y _, p y ⟩,
   intros p f,
-  induction f;
-  simp [p];
-  try { simp [f_ih] };
-  try { simp [f_ih_f, f_ih_g] };
-  split;
-  try { { intros q g, simp [q] } };
-  intro q;
-  split;
-  try { split };
-  intros g s;
-  try {
-  { apply q g, simp [s] } },
-  { apply q (Λ g), simp [s] },
-  { apply q (g·f_g), simp [s] },
-  { apply q (f_f·g), simp [s] }
+  induction f using lambda_calculus.utlc.notation_induction_on,
+  { simp[p] },
+  { simp [← p, f_ih, not_or_distrib, forall_and_distrib, hforall] },
+  { simp [← p, f_ih_f, f_ih_g, not_or_distrib, forall_and_distrib, hforall] }
 end
 
 end utlc

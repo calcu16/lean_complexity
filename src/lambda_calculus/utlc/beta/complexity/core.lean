@@ -15,7 +15,7 @@ open lambda_calculus.utlc.β.encoding
 
 local attribute [simp] closed closed_below
 local attribute [simp] β.normal_iteration β.strategic_reduction_step
-local attribute [simp] reduced substitution shift shift_substitution_index
+local attribute [simp] substitution shift head_reduced
 
 def fork_prog: encoded_program := ⟨ Λ Λ Λ Λ ↓0·(↓3·↓1)·(↓2·↓1), by simp [←one_add_one_eq_two] ⟩
 
@@ -30,14 +30,12 @@ begin
   fconstructor,
   fconstructor,
   exact fork_prog.value·fp.value·gp.value,
-  simp,
-  exact ⟨ fork_prog.proof, fp.proof, gp.proof ⟩,
+  { simp },
   intro a,
   apply distance_le_trans',
   apply distance_le_of_normal_iteration 3,
-  simp [fork_prog, complexity.cast_unwrap, distance_model, ← shift_comm _ (nat.zero_le _),
+  simp [fork_prog, complexity.cast_unwrap, distance_model,
     complexity.has_encoding.value],
-  rw [shift_of_closed fp.proof, shift_of_closed gp.proof, shift_of_closed],
   apply lambda_distance_le_lambda,
   apply distance_le_trans',
   apply dot_distance_le_dot_left,
@@ -61,8 +59,7 @@ begin
   fconstructor,
   fconstructor,
   exact curry_prog.value·fp.value,
-  simp,
-  exact ⟨ curry_prog.proof, fp.proof ⟩,
+  { simp },
   intros a b,
   apply of_distance_le begin
     fconstructor,
@@ -72,14 +69,10 @@ begin
     apply (a, b),
     apply @encoding.prod_encoding α β α_en β_en,
     simp,
-    apply fp.proof,
   end,
   apply distance_le_of_normal_iteration 3,
-  simp [curry_prog, complexity.cast_unwrap, distance_model, complexity.has_encoding.value, ← shift_comm _ (nat.zero_le _)],
-  rw [shift_of_closed, shift_of_closed, complexity.encode],
+  simp [curry_prog, complexity.cast_unwrap, distance_model, complexity.has_encoding.value],
   refl,
-  simp,
-  simp,
   apply cfp,
   simp [complexity.cast_unwrap, ← fcast', curry],
 end
@@ -96,8 +89,7 @@ begin
   fconstructor,
   fconstructor,
   exact uncurry_prog.value·fp.value,
-  simp,
-  exact ⟨ uncurry_prog.proof, fp.proof ⟩,
+  { simp },
   intros ab,
   cases ab with a b,
   apply of_distance_le begin
@@ -112,10 +104,9 @@ begin
     apply b,
     apply β_en,
     simp,
-    apply fp.proof,
   end,
   apply distance_le_of_normal_iteration 3,
-  simp [uncurry_prog, pair, complexity.cast_unwrap, distance_model, complexity.has_encoding.value, ← shift_comm _ (nat.zero_le _), substitution_identity_of_closed],
+  simp [uncurry_prog, pair, complexity.cast_unwrap, distance_model, complexity.has_encoding.value],
   simp [complexity.encode],
   apply cfp,
   simp [complexity.cast_unwrap, ← fcast', uncurry],

@@ -20,7 +20,7 @@ def step : utlc → utlc → Prop
 
 instance : has_parallel_reduction utlc := ⟨ step ⟩
 
-@[simp] theorem down_step_down {n m: ℕ}: (↓n:utlc) →∥ ↓m ↔ n = m :=
+@[simp] theorem down_step_down_iff {n m: ℕ}: (↓n:utlc) →∥ ↓m ↔ n = m :=
 by simp [has_parallel_reduction.step, step, eq_comm]
 
 @[simp] theorem not_down_step_lambda (n: ℕ) (f: utlc): ¬ (↓n:utlc) →∥ Λ f :=
@@ -29,7 +29,7 @@ by simp [has_parallel_reduction.step, step]
 @[simp] theorem not_down_step_dot (n: ℕ) (f g: utlc): ¬ (↓n:utlc) →∥ f·g :=
 by simp [has_parallel_reduction.step, step]
 
-@[simp] theorem lambda_step_lambda {f g: utlc}: (Λ f) →∥ (Λ g) ↔ f →∥ g :=
+@[simp] theorem lambda_step_lambda_iff {f g: utlc}: (Λ f) →∥ (Λ g) ↔ f →∥ g :=
 by simp [has_parallel_reduction.step, step]
 
 @[simp] theorem not_lambda_step_down (f: utlc) (n: ℕ): ¬ Λ f →∥ ↓n :=
@@ -40,37 +40,35 @@ by simp [has_parallel_reduction.step, step]
 
 theorem dot_step_dot {f f' g g': utlc}: f →∥ f' → g →∥ g' → (f·g) →∥ (f'·g') :=
 begin
-  simp [has_parallel_reduction.step, step],
-  intros p q,
-  exact or.inl ⟨p, q⟩,
+  simp only [has_parallel_reduction.step, step],
+  exact λ p q, or.inl ⟨f', g', p, q, rfl⟩,
 end
 
 theorem dot_step_substitution {f f' g g': utlc} (x: utlc): f →∥ f' → g →∥ g' → f' = Λ x → f·g →∥ x[0:=g'] :=
 begin
-  simp [has_parallel_reduction.step, step],
+  simp only [has_parallel_reduction.step, step],
   intros p q fx,
   rw [fx] at p,
-  refine or.inr ⟨x, p, g', q, rfl⟩
+  refine or.inr ⟨x, g', p, q, rfl⟩
 end
 
 theorem dot_step_substitution' {f f' g g' y: utlc} (x: utlc): f →∥ f' → g →∥ g' → f' = Λ x → y = x[0:=g'] → f·g →∥ y :=
 begin
-  simp [has_parallel_reduction.step, step],
+  simp only [has_parallel_reduction.step, step],
   intros p q fx fy,
   rw [fx] at p,
   rw [fy],
-  refine or.inr ⟨x, p, g', q, rfl⟩
+  refine or.inr ⟨x, g', p, q, rfl⟩
 end
 
 theorem lambda_dot_step_substitution {f f' g g': utlc}: f →∥ f' → g →∥ g' → (Λ f)·g →∥ f'[0:=g'] :=
 begin
-  simp [has_parallel_reduction.step, step],
+  simp only [has_parallel_reduction.step, step],
   intros p q,
-  exact or.inr ⟨f', p, g', q, rfl⟩,
+  exact or.inr ⟨f', g', ⟨f', p, rfl⟩, q, rfl⟩,
 end
 
-
-theorem dot_step {f f' g: utlc}: f·f' →∥ g →
+theorem dot_step_iff {f f' g: utlc}: f·f' →∥ g ↔
   (∃ x y, f →∥ x ∧ f' →∥ y ∧ g = x·y ) ∨ (∃ x y,  f →∥ (Λ x) ∧ f' →∥ y ∧ g = x[0:=y]) :=
 by  simp [has_parallel_reduction.step, step]
 
@@ -78,37 +76,37 @@ by  simp [has_parallel_reduction.step, step]
 theorem step_notation {f g: utlc}: step f g ↔ f →∥ g := by refl
 end -- shouldn't need to use has_parallel_reduction.step below here
 
+@[simp] theorem down_step_down {n m: ℕ}: n = m → (↓n:utlc) →∥ ↓m :=
+by simp
+
+theorem lambda_step_lambda {f g: utlc}: f →∥ g → (Λ f) →∥ (Λ g) :=
+by simp
+
+theorem dot_step_cases {f f' g: utlc}: f·f' →∥ g →
+  (∃ x y, f →∥ x ∧ f' →∥ y ∧ g = x·y ) ∨ (∃ x y,  f →∥ (Λ x) ∧ f' →∥ y ∧ g = x[0:=y]) :=
+  dot_step_iff.mp
+
 @[refl]
 theorem step_refl (f : utlc): f →∥ f :=
 begin
-  induction f,
-  all_goals { simp },
-  { assumption },
-  exact dot_step_dot f_ih_f f_ih_g,
+  induction f using lambda_calculus.utlc.notation_induction_on,
+  { exact down_step_down rfl },
+  { exact lambda_step_lambda f_ih },
+  { exact dot_step_dot f_ih_f f_ih_g }
 end
 
-@[simp] theorem down_step {n: ℕ} {g: utlc}: (↓n:utlc) →∥ g ↔ ↓n = g :=
-by { cases g, all_goals { simp } }
+@[simp] theorem down_step_iff {n: ℕ} {g: utlc}: (↓n:utlc) →∥ g ↔ ↓n = g :=
+by cases g; simp
 
 @[simp] theorem down_dot_step (n: ℕ) {f g: utlc}: (↓n·f) →∥ g ↔
   (∃ x, f →∥ x ∧ g = ↓n·x ) :=
-begin
-  split,
-  { intro h,
-    have h := dot_step h,
-    simp at h,
-    assumption },
-  { intro h,
-    rcases h with ⟨x, fx, gx⟩,
-    rw [gx],
-    apply dot_step_dot (step_refl _) fx }
-end
+by simp [dot_step_iff]
 
 theorem dot_dot_step {a b c g: utlc}: (a·b·c) →∥ g →
   (∃ x y, (a·b) →∥ x ∧ c →∥ y ∧ x·y →∥ g ) :=
 begin
   intro h,
-  have h := dot_step h,
+  have h := dot_step_cases h,
   cases h with h h,
   { rcases h with ⟨x, y, habx, hcy, hgxy⟩,
     refine ⟨x, y, habx, hcy, _⟩,
@@ -123,7 +121,7 @@ theorem dot_dot_step' {a b c g: utlc}: (a·b·c) →∥ g →
   (∃ x, (a·b) →∥ x ∧ x·c →∥ g ) :=
 begin
   intro h,
-  have h := dot_step h,
+  have h := dot_step_cases h,
   cases h with h h,
   { rcases h with ⟨x, y, habx, hcy, hgxy⟩,
     rw [hgxy],
@@ -133,33 +131,24 @@ begin
   refine ⟨ Λ x, habx, lambda_dot_step_substitution (step_refl _) hcy⟩,
 end
 
-theorem shift_step_shift {f g: utlc} (n: ℕ): f →∥ g  → f ↑¹ n →∥ g ↑¹ n :=
+theorem shift_step_shift {f g: utlc} (n: ℕ): f →∥ g → f ↑¹ n →∥ g ↑¹ n :=
 begin
-  induction f using lambda_calculus.utlc.substitution_induction_on generalizing g n,
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing g n,
+  { cases g; simp [down_shift] },
   { cases g,
-    all_goals { simp },
+    { simp },
+    { simpa using f_ih (n+1) },
+    { simp } },
+  { rw [dot_step_iff, dot_shift],
     intro h,
-    rw [h] },
-  { cases g,
-    all_goals { simp },
-    apply f_hx },
-  { simp only [down_dot_step, forall_exists_index],
-    intro x,
-    intro h,
-    rw [h.right, dot_shift, dot_shift],
-    exact dot_step_dot (f_hn _ (step_refl _)) (f_hx _ h.left) },
-  all_goals { intro h, cases dot_step h with h h },
-  all_goals { rcases h with ⟨x, y, hfx, hfy, hgxy⟩, rw [hgxy] },
-  any_goals { apply dot_step_dot },
-  any_goals { simp [dot_shift, lambda_shift, substitution_shift_zero] },
-  any_goals { apply lambda_dot_step_substitution },
-  any_goals { apply dot_step_substitution },
-  any_goals { apply f_hy _ hfy },
-  any_goals { apply f_hz _ hfy },
-  apply f_hx' _ hfx,
-  apply f_hx _ (lambda_step_lambda.mp hfx),
-  any_goals { apply f_hxy _ hfx },
-  simp
+    cases h;
+    rcases h with ⟨x, y, hf, hg, h⟩; rw [h],
+    { rw [dot_shift x],
+      apply dot_step_dot (f_ih_f _ hf) (f_ih_g _ hg) },
+    { rw [← substitution_shift_zero],
+      apply dot_step_substitution _ (f_ih_f _ hf) (f_ih_g _ hg),
+      simp }
+  }
 end
 
 theorem substitution_step_substitution_succ {f f' g g': utlc} {n : ℕ}: f →∥ f' → g →∥ g' → g'.uses 0 = 0 → f[n+1:=g] →∥ f'[n+1:=g'] :=
@@ -176,16 +165,16 @@ begin
     cases f',
     all_goals { simp },
     intros hf hg ug',
-    apply f_ih hf (shift_step_shift _ hg) (shift_uses_zero _) },
+    apply f_ih hf (shift_step_shift _ hg) (shift_uses_self _ _) },
   simp,
   intros hf hg ug',
-  cases dot_step hf with h h,
+  cases dot_step_cases hf with h h,
   all_goals { rcases h with ⟨x, y, hfx, hfy, hfxy⟩,  rw [hfxy] },
   any_goals {
     rw [dot_substitution],
     apply dot_step_dot },
   any_goals {
-    rw [substitution_dist_lt _ _ (nat.zero_lt_succ _) ug'],
+    rw [substitution_dist_lt (nat.zero_lt_succ _)],
     apply dot_step_substitution },
   any_goals { apply f_ih_f },
   any_goals { apply f_ih_g },
@@ -207,14 +196,14 @@ begin
   { cases f',
     all_goals { simp },
     intros hf hg,
-    exact substitution_step_substitution_succ hf (shift_step_shift _ hg) (shift_uses_zero _) },
+    exact substitution_step_substitution_succ hf (shift_step_shift _ hg) (shift_uses_self _ _) },
   intros hf hg,
-  cases dot_step hf with h h,
+  cases dot_step_cases hf with h h,
   all_goals { rcases h with ⟨x, y, hfx, hfy, hfxy⟩,  rw [hfxy] },
   rw [dot_substitution],
   apply dot_step_dot,
   any_goals {
-    rw [substitution_dist_zero],
+    rw [substitution_dist_eq],
     apply dot_step_substitution },
   any_goals { apply f_ih_f hfx hg },
   any_goals { apply f_ih_g hfy hg },
@@ -238,8 +227,8 @@ begin
     use Λ d,
     simp [ih] },
   { intros hab hac,
-    cases dot_step hab with hab hab,
-    all_goals { cases dot_step hac with hac hac },
+    cases dot_step_cases hab with hab hab,
+    all_goals { cases dot_step_cases hac with hac hac },
     all_goals { rcases hab with ⟨f, g, haf, hag, hbfg⟩ },
     all_goals { rcases hac with ⟨m, n, ham, han, hcmn⟩ },
     all_goals {
@@ -267,8 +256,6 @@ begin
   exact ⟨d, relation.refl_gen.single yd, relation.refl_trans_gen.single zd⟩
 end
 end parallel
-
-
 
 end β
 end utlc

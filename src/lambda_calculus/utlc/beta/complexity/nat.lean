@@ -16,9 +16,8 @@ namespace complexity
 namespace nat
 
 
-local attribute [simp] distance_model closed closed_below
-local attribute [simp] β.normal_iteration β.strategic_reduction_step
-local attribute [simp] reduced substitution shift shift_substitution_index
+local attribute [simp] distance_model closed
+local attribute [simp] β.normal_iteration β.strategic_reduction_step head_reduced substitution down_shift
 
 def succ_prog: encoded_program := ⟨ Λ Λ Λ ↓1·(↓2·↓1·↓0), by simp ⟩
 
@@ -96,16 +95,16 @@ begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
   fconstructor,
   use iterate_prog.value·fp.value,
-  { simp, exact ⟨ iterate_prog.proof, fp.proof ⟩ },
+  { simp },
   simp only [cast_unwrap, cast_eq, iterate_prog],
   intros n a,
   induction n generalizing a,
   { apply β.distance_le_of_normal_iteration,
-    simp [has_encoding.value, ← shift_comm _ (nat.zero_le _), shift_substitution_index, encoding.nat.iterate, iteration_complexity.cost_zero] },
+    simp [has_encoding.value, encoding.nat.iterate, iteration_complexity.cost_zero] },
   { apply distance_le_trans',
     apply β.distance_le_of_normal_iteration 5,
     refl,
-    simp [has_encoding.value, ← shift_comm _ (nat.zero_le _), shift_substitution_index, encoding.nat.iterate],
+    simp [has_encoding.value, encoding.nat.iterate],
     apply distance_le_trans' (5 + (cfc a)) _ _ (n_ih (f a)),
     all_goals { clear n_ih },
     refl,
@@ -113,7 +112,7 @@ begin
     apply distance_le_symm,
     apply distance_le_trans',
     apply β.distance_le_of_normal_iteration 5,
-    simp [← shift_comm _ (nat.zero_le _), shift_substitution_index],
+    simp,
     apply distance_le_symm,
     simp [encoding.nat.iterate],
     apply iteration_complexity.iterate_distance_le,

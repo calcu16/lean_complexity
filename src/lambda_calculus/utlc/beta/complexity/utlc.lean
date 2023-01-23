@@ -33,7 +33,7 @@ def y_combinator: encoded_program := ⟨ Λ (Λ ↓1·(↓0·↓0))·(Λ ↓1·(
 
 local attribute [simp] closed closed_below
 local attribute [simp] β.normal_iteration β.strategic_reduction_step
-local attribute [simp] reduced substitution shift shift_substitution_index
+local attribute [simp] substitution down_shift head_reduced
 local attribute [simp] complexity.cast_unwrap distance_model
 local attribute [simp] encoding.utlc.encode_utlc
 
@@ -63,10 +63,8 @@ theorem rec_utlc_sub {y g f₀ f₁ f₂: utlc} (n: ℕ) (x: utlc):
   (rec_utlc y g f₀ f₁ f₂)[n:=x] = (rec_utlc (y[n:=x]) (g[n:=x]) (f₀[n:=x]) (f₁[n:=x]) (f₂[n:=x])) :=
 begin
   simp [rec_utlc, handle_down, handle_lambda, handle_dot, substitution_shift_ge],
-  split,
-  rw [substitution_shift_ge, ← shift_comm x (nat.zero_le 0), ← shift_comm _ (nat.zero_le (0 + 1)), ← shift_comm x (nat.zero_le 0)],
-  linarith,
-  rw [← shift_comm x (nat.zero_le 0)],
+  repeat { rw [substitution_shift_ge] },
+  all_goals { linarith },
 end
 
 theorem rec_utlc_down (y: utlc) (n: ℕ) (f₀ f₁ f₂: utlc):
@@ -77,18 +75,7 @@ begin
   rw [rec_utlc, utlc.encode_utlc, β.encoding.alternative],
   simp,
   apply distance_le_of_normal_iteration,
-  simp [handle_down, ← shift_comm _ (nat.zero_le 0)],
-  rw [substitution_identity_of_closed, substitution_identity_of_closed, substitution_identity_of_closed],
-  simp,
-  rw [substitution_identity_of_closed],
-  simp,
-  simp,
-  rw [substitution_identity_of_closed, substitution_identity_of_closed],
-  simp,
-  simp,
-  rw [substitution_identity_of_closed],
-  simp,
-  simp,
+  simp [handle_down],
 end
 
 theorem rec_utlc_lambda (y g f₀ f₁ f₂: utlc):
@@ -99,22 +86,8 @@ begin
   rw [rec_utlc, utlc.encode_utlc, β.encoding.alternative],
   simp,
   apply distance_le_of_normal_iteration 4,
-  simp [handle_lambda, ← shift_comm _ (nat.zero_le 0)],
-  rw [substitution_identity_of_closed],
-  rw [substitution_identity_of_closed],
-  rw [substitution_identity_of_closed],
+  simp [handle_lambda, utlc.encode_utlc, encode],
   refl,
-  simp,
-  rw [substitution_identity_of_closed],
-  simp,
-  simp,
-  rw [substitution_identity_of_closed],
-  rw [substitution_identity_of_closed],
-  simp,
-  simp,
-  rw [substitution_identity_of_closed],
-  simp,
-  simp,
 end
 
 
@@ -127,17 +100,15 @@ begin
   simp,
   apply distance_le_trans',
   apply distance_le_of_normal_iteration 5,
-  simp [handle_dot, ← shift_comm _ (nat.zero_le 0), 
-    substitution_identity_of_closed (utlc.encode_utlc g₀).proof.left,
-    substitution_identity_of_closed (utlc.encode_utlc g₁).proof.left],
+  simp [handle_dot],
   apply distance_le_trans',
   apply dot_distance_le_dot_right,
   apply distance_le_of_normal_iteration 2,
-  simp [substitution_identity_of_closed (utlc.encode_utlc g₁).proof.left],
+  simp,
   apply dot_distance_le_dot_left,
   apply dot_distance_le_dot_right,
   apply distance_le_of_normal_iteration 3,
-  simp [substitution_identity_of_closed (utlc.encode_utlc g₀).proof.left],
+  simp,
   refl,
   refl,
   simp,
@@ -159,11 +130,7 @@ begin
   fconstructor,
   fconstructor,
   exact yrec (Λ Λ rec_utlc (↓1:utlc) (↓0:utlc) fp₀.value fp₁.value fp₂.value),
-  simp [ycomb, yrec, rec_utlc, handle_down, handle_lambda, handle_dot, shift_of_closed_below fp₁.proof, shift_of_closed_below fp₂.proof],
-  norm_num,
-  exact ⟨ closed_below_mono fp₀.proof (nat.zero_le _),
-    closed_below_mono fp₁.proof (nat.zero_le _), 
-    closed_below_mono fp₂.proof (nat.zero_le _)⟩,
+  simp [ycomb, yrec, rec_utlc, handle_down, handle_lambda, handle_dot],
   simp [cast_unwrap],
   intro a,
   simp [has_encoding.value, distance_model, complexity.encode],
@@ -173,10 +140,7 @@ begin
     apply yrec_apply,
     apply distance_le_trans',
     apply distance_le_of_normal_iteration 2,
-    simp [rec_utlc_sub,
-      substitution_identity_of_closed fp₀.proof,
-      substitution_identity_of_closed fp₁.proof,
-      substitution_identity_of_closed fp₂.proof] },
+    simp [rec_utlc_sub] },
   { apply distance_le_trans',
     apply rec_utlc_down,
     simp,

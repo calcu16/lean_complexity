@@ -10,9 +10,7 @@ namespace complexity
 
 open lambda_calculus.utlc.β.encoding
 
-local attribute [simp] closed closed_below
-local attribute [simp] β.normal_iteration β.strategic_reduction_step
-local attribute [simp] reduced substitution shift shift_substitution_index
+local attribute [simp] β.normal_iteration β.strategic_reduction_step head_reduced
 
 theorem of_distance_le
   {a: complexity.encodable_function distance_model} {f f': a.unwrap} (g : encoded_program) {g': encoded_program} (fc fc': complexity.cost_function a) (n: ℕ):
@@ -96,14 +94,12 @@ begin
   apply of_distance_le begin
     fconstructor,
     { exact gp.value·((β_en.value.encode (f a)).value) },
-    simp, exact  gp.proof,
+    simp,
   end,
   { simp [distance_model, compose_prog],
     apply distance_le_trans,
     { apply distance_le_of_normal_iteration 3,
       simp [normal_iteration, distance_model, compose_prog] },
-    rw [← shift_comm _ (nat.zero_le _)],
-    simp [shift_substitution_index],
     apply utlc.β.dot_distance_le_dot_right,
     apply cfp a },
   apply cgp (f a),
@@ -128,8 +124,6 @@ begin
   { apply distance_le_of_normal_iteration 3,
     refl },
   simp [distance_model, flip_prog],
-  rw [← shift_comm _ (nat.zero_le _)],
-  simp [shift_substitution_index],
   apply cfp,
   simp [add_comm 3],
 end ⟩ ⟩

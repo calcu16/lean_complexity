@@ -20,7 +20,7 @@ begin
     any_goals { contradiction },
     apply lambda_reduction_lambda,
     apply f_ih pfg },
-  { cases parallel.dot_step pfg with h h,
+  { cases parallel.dot_step_cases pfg with h h,
     all_goals { rcases h with ⟨x, y, hfx, hfy, hgxy⟩ },
     { rw [hgxy],
       apply dot_reduction_dot (f_ih_f hfx) (f_ih_g hfy) },
@@ -33,62 +33,33 @@ end
 
 theorem parallel_of_β {f g : utlc}: f →β g → f →∥ g :=
 begin
-  intro hfg,
-  induction f using lambda_calculus.utlc.substitution_induction_on generalizing g,
-  all_goals { cases g, all_goals { simp } },
-  any_goals { simp [lambda_step_iff, dot_step_iff] at hfg, contradiction },
-  { simp at hfg,
-    apply f_hx hfg },
-  { simp [dot_step_cases, and.assoc] at hfg, exact ⟨f_hx hfg.right, hfg.left⟩ },
-  any_goals { simp [dot_step_iff, and.assoc] at hfg,
-    rw [← hfg],
-    apply parallel.dot_step_substitution,
-    all_goals { refl }  },
-  { simp [dot_step_iff, lambda_step_iff, and.assoc] at hfg,
-    obtain hfg|hfg|hfg := hfg,
-    { rw [←hfg],
-      apply parallel.dot_step_substitution,
-      all_goals { refl }, },
-    { rcases hfg with ⟨hfg, x, hgx, hfx⟩,
-      apply parallel.dot_step_dot,
-      rw [hgx],
-      rw parallel.lambda_step_lambda,
-      apply f_hx,
-      apply hfx,
-      rw [hfg] },
-    { apply parallel.dot_step_dot,
-      rw [hfg.left],
-      apply f_hy,
-      apply hfg.right } },
-  { rw [dot_step_iff] at hfg,
-    simp [and.assoc] at hfg,
-    cases hfg;
-    apply parallel.dot_step_dot;
-    try { rw [hfg.left] };
-    try { apply f_hxy };
-    try { apply f_hz };
-    apply hfg.right,
-  }
+  induction f using lambda_calculus.utlc.notation_induction_on generalizing g,
+  { simp },
+  { intro hfg,
+    rcases lambda_step_exists hfg with ⟨x, hgx, hfx⟩,
+    rw [hgx],
+    exact parallel.lambda_step_lambda (f_ih hfx) },
+  { intro hfg,
+    obtain hfg|hfg|hfg := dot_step_cases hfg;
+    rcases hfg with ⟨x, hgx, hfx⟩;
+    rw [hgx],
+    { exact parallel.dot_step_substitution _ (parallel.step_refl _) (parallel.step_refl _) hfx },
+    all_goals { apply parallel.dot_step_dot },
+    apply f_ih_f hfx,
+    refl,
+    refl,
+    apply f_ih_g hfx }
 end
 
 theorem parallel_iff_β {f g : utlc}: f ↠∥ g ↔ f ↠β g :=
 begin
-  split,
-  intro p,
+  split;
+  intro p;
   induction p with b c pb pbc fb,
-  refl,
-  apply trans,
-  apply fb,
-  apply β_of_parallel,
-  apply pbc,
-  intro p,
-  induction p with b c pb pbc fb,
-  refl,
-  apply trans,
-  apply fb,
-  apply relation.refl_trans_gen.single,
-  apply parallel_of_β,
-  apply pbc,
+  { refl },
+  { exact trans fb (β_of_parallel pbc) },
+  { refl },
+  { exact trans fb (relation.refl_trans_gen.single (parallel_of_β pbc)) }
 end
 
 theorem church_rosser {a b c : utlc} (hab : a ↠β b) (hac : a ↠β c): b ≡β c :=
@@ -97,7 +68,7 @@ begin
   rw [← parallel_iff_β] at hab hac,
   cases parallel.church_rosser hab hac with d hd,
   use d,
-  simp [parallel_iff_β] at hd,
+  simp only [parallel_iff_β] at hd,
   apply hd,
 end
 
@@ -107,24 +78,17 @@ theorem equiv_refl (f : utlc): f ≡β f :=
 
 @[symm]
 theorem equiv_symm {a b: utlc}: a ≡β b → b ≡β a :=
-begin
-  apply relation.symmetric_join
-end
+by apply relation.symmetric_join
 
 @[trans]
 theorem equiv_trans {a b c : utlc}: a ≡β b → b ≡β c → a ≡β c :=
-begin
-  apply relation.transitive_join,
-  apply relation.refl_trans_gen.trans,
-  apply church_rosser,
-end
+by apply relation.transitive_join (@relation.refl_trans_gen.trans _ _) @church_rosser
 
 theorem lambda_equiv_lambda {f g : utlc}: f ≡β g → Λ f ≡β Λ g :=
 begin
   intro p,
   cases p with c p,
-  use Λ c,
-  exact ⟨lambda_reduction_lambda p.left, lambda_reduction_lambda p.right⟩
+  exact ⟨Λ c, lambda_reduction_lambda p.left, lambda_reduction_lambda p.right⟩
 end
 
 theorem dot_equiv_dot {f f' g g': utlc}: f ≡β f' → g ≡β g' → f·g ≡β f'·g' :=
@@ -132,23 +96,14 @@ begin
   intros p q,
   cases p with c p,
   cases q with d q,
-  use c·d,
-  exact ⟨dot_reduction_dot p.left q.left, dot_reduction_dot p.right q.right⟩
+  exact ⟨c·d, dot_reduction_dot p.left q.left, dot_reduction_dot p.right q.right⟩
 end
 
 theorem dot_equiv_dot_left {f f' g: utlc}: f ≡β f' → f·g ≡β f'·g :=
-begin
-  intro p,
-  apply dot_equiv_dot p,
-  refl,
-end
-
+  λ p, dot_equiv_dot p (by refl)
 
 theorem dot_equiv_dot_right {f g g': utlc}: g ≡β g' → f·g ≡β f·g' :=
-begin
-  apply dot_equiv_dot,
-  refl
-end
+  dot_equiv_dot (by refl)
 
 theorem reduced_reduction_inj {f g: utlc}: reduced f → f ↠β g → f = g :=
 begin
