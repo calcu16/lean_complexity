@@ -73,8 +73,14 @@ namespace encodable_function
 @[simp] def unwrap: encodable_function m → Type
 | (result en) := en.type
 | (application en b) := en.type → b.unwrap
+
+@[simp] def result_type: encodable_function m → Type
+| (result en) := en.type
+| (application _ b) := b.result_type
+
 end encodable_function
 variables {enf: encodable_function m}
+
 
 structure is_encoded_function (m: model α β γ) (δ: Type):=
 mk ::
@@ -100,6 +106,8 @@ instance encodable_result (δ: Type) [f: has_encoding m δ]:
 instance encodable_application (δ: Type) [f: has_encoding m δ] (ε: Type) [g: has_encodable_function m ε]:
     has_encodable_function m (δ → ε) :=
   ⟨ ⟨ encodable_function.application f.value g.value.value, ftype rfl g.value.sound ⟩ ⟩
+
+def result_type (m: model α β γ) (δ: Type) [f: has_encodable_function m δ] := f.value.value.result_type
 
 def cost_function: encodable_function m → Type
 | (encodable_function.result _) := γ

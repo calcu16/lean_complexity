@@ -21,7 +21,7 @@ local attribute [simp] β.normal_iteration β.strategic_reduction_step head_redu
 
 def succ_prog: encoded_program := ⟨ Λ Λ Λ ↓1·(↓2·↓1·↓0), by simp ⟩
 
-instance succ_complexity: has_complexity distance_model nat.succ :=
+instance succ_complexity: has_complexity church_model nat.succ :=
   ⟨ ⟨ λ _, (3:ℕ), ⟨ succ_prog,
 begin
   simp only [cast_unwrap, cast_eq],
@@ -32,7 +32,7 @@ end ⟩ ⟩ ⟩
 
 def add_prog: encoded_program := ⟨ Λ Λ Λ Λ ↓3·↓1·(↓2·↓1·↓0), by simp [← one_add_one_eq_two] ⟩
 
-instance add_complexity: has_complexity distance_model nat.add :=
+instance add_complexity: has_complexity church_model nat.add :=
   ⟨ ⟨ λ _ _, (6:ℕ), ⟨ add_prog,
 begin
   simp only [cast_unwrap, cast_eq],
@@ -84,12 +84,12 @@ begin
   simp [nat.add_assoc, nat.add_left_comm _ (ni a)],
 end
 
-@[simp] def cost' {α: Type} [α_en: has_encoding distance_model α]
-  (fi: α → α) (ni: complexity.cost_function' distance_model (α → ℕ)): complexity.cost_function' distance_model (ℕ → α → α) := cost fi ni
+@[simp] def cost' {α: Type} [α_en: has_encoding church_model α]
+  (fi: α → α) (ni: complexity.cost_function' church_model (α → ℕ)): complexity.cost_function' church_model (ℕ → α → α) := cost fi ni
 end iteration_complexity
 
-instance iteration_complexity (α: Type) [α_en: has_encoding distance_model α]
-  (f: α → α) [cf: has_complexity distance_model f]: has_complexity distance_model (nat.iterate f) :=
+instance iteration_complexity (α: Type) [α_en: has_encoding church_model α]
+  (f: α → α) [cf: has_complexity church_model f]: has_complexity church_model (nat.iterate f) :=
 ⟨ ⟨ iteration_complexity.cost' f cf.value.cost,
 begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
@@ -122,7 +122,7 @@ begin
     ring }
 end ⟩ ⟩
 
-example:  (complexity distance_model nat.mul) ≤ (λ (x y: ℕ), ((30*y + 43):ℕ)) :=
+example:  (complexity church_model nat.mul) ≤ (λ (x y: ℕ), ((30*y + 43):ℕ)) :=
 begin
   intros n m,
   simp only [complexity, complexity.cost_function.less_than_or_equal, has_complexity.value, fork, const, uncurry],

@@ -103,7 +103,6 @@ begin
   all_goals { simp [has_η_reduction.step, and_assoc] },
 end
 
-
 theorem reduction_step_shift (n: ℕ): f ↑¹ n →η g ↑¹ n → f →η g :=
 begin
   induction f generalizing g n,
@@ -132,13 +131,12 @@ begin
       -- rw [← hgx, ← shift_comm] at hfx,
       apply lambda_step_head',
       rw [← shift_inj_iff (n + 1), hfx],
-      simp,
-      rw [shift_comm, hgx],
-      apply nat.zero_le } },
+      simp [down_shift],
+      rw [← shift_comm_zero, hgx] } },
   { simp,
     intro p,
     cases g;
-    try { simp[has_η_reduction.step, reduction_step] at p,
+    try { simp[has_η_reduction.step, reduction_step, dot_step_iff, down_shift] at p,
       contradiction },
     rcases dot_step_cases p with ⟨x, y, hgxy, p⟩,
     simp at hgxy,
@@ -153,7 +151,8 @@ begin
     simp [hfx] at hgxy,
     rw [hgxy.left],
     rw [← hgxy.right] at hfy,
-    exact dot_step_dot_right (f_ih_g _ hfy) }
+    exact dot_step_dot_right (f_ih_g _ hfy)
+     }
 end
 
 theorem reduction_step_uses: f →η g → ∀ n, f.uses n = g.uses n :=
@@ -164,9 +163,7 @@ begin
     cases lambda_step_cases p with x p,
     cases p with p p,
     { simp [uses, p.left], exact f_ih p.right _},
-    { simp [uses, p, show 0 ≠ n + 1, by linarith],
-      rw [shift_uses_lt, nat.add_sub_cancel],
-      exact nat.zero_lt_succ _ } },
+    { simp [uses, p, show 0 ≠ n + 1, by linarith] } },
   {
     intros p m,
     rcases dot_step_cases p with ⟨x, y, hg, p⟩,
@@ -289,10 +286,10 @@ begin
   cases g;
   try { simp };
   cases f;
-  simp;
+  try { simp[down_shift] };
   cases f_f;
   cases f_g;
-  simp;
+  simp [down_shift];
   split_ifs;
   simp;
   try { simp [← @shift_comm 1 (n + 1) _ (by linarith)] };
@@ -301,16 +298,25 @@ begin
   try { linarith };
   split;
   intro;
-  linarith
+  try { linarith },
+  rw [← @shift_inj_iff _ (n + 1 + 1), shift_comm],
+  assumption,
+  linarith,
+  rw [← shift_comm, shift_inj_iff],
+  assumption,
+  linarith,
 end
 
 theorem head_step_substitution: head_step f f' → ∀ n g, f[n:=g] ↠η f'[n:=g]  :=
 begin
   simp only [head_step],
   intros p n g,
-  simp [p,
-    ← substitution_shift_ge _ _ (nat.zero_le _),
-    relation.refl_trans_gen.single (lambda_step_head _)]
+  simp [p],
+  apply relation.refl_trans_gen.single,
+  apply lambda_step_head',
+  simp,
+  apply substitution_shift_ge,
+  apply nat.zero_le _,
 end
 
 def head_reduced : utlc → bool
@@ -335,12 +341,12 @@ begin
     exfalso,
     apply (ne_of_lt p).symm,
     rw [q],
-    apply shift_uses_zero,
+    apply shift_uses_self,
     assumption },
   intros p,
   obtain h|h|h := nat.lt_trichotomy (f_f.uses 0) 0,
   { simp at h, contradiction },
-  { cases shift_of_uses h with g h,
+  { cases shift_of_uses_zero h with g h,
     right,
     apply p g h },
   { left, apply h },

@@ -23,7 +23,15 @@ begin
       @or.left_comm _ (f_f = g ↑¹ 0 · ↓0)] },
   { simp [dot_reduction_step_iff, head_step, η.dot_step_iff', β.dot_step_iff, f_ih_f, f_ih_g,
       and_or_distrib_left, exists_or_distrib, and.assoc, or.assoc],
-    itauto }
+    conv {
+      congr,
+      congr,
+      congr,
+      funext,
+      rw [and_comm],
+      skip,
+      skip,
+    }, itauto }
 end
 
 theorem reduction_of_beta {f g: utlc}: f ↠β g → f ↠βη g :=
@@ -54,7 +62,7 @@ theorem reduced_iff_no_reduction {f: utlc}: reduced f ↔ ∀ g, ¬ f →βη g 
 begin
   apply reduced_iff_not_reduction_step,
   intro f,
-  simp [head_reduced, head_step, β.not_head_step_iff_head_reduced, η.head_reduced_iff_not_head_step,
+  simp [head_reduced, head_step, β.head_reduced_iff_not_head_step, η.head_reduced_iff_not_head_step,
     forall_and_distrib, not_or_distrib],
 end 
 

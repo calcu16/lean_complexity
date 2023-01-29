@@ -22,7 +22,7 @@ begin
   linarith
 end 
 
-@[simp] theorem shift_inj_iff' {f: utlc} (n: nat) {g: utlc}: f ↑¹ n = g ↑¹ n ↔ f = g :=
+@[simp] theorem shift_inj_iff {f: utlc} (n: nat) {g: utlc}: f ↑¹ n = g ↑¹ n ↔ f = g :=
 begin
   induction f using lambda_calculus.utlc.notation_induction_on generalizing n g;
   induction g using lambda_calculus.utlc.notation_cases_on,

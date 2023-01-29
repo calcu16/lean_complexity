@@ -19,10 +19,11 @@ local attribute [simp] substitution shift head_reduced
 
 def fork_prog: encoded_program := ⟨ Λ Λ Λ Λ ↓0·(↓3·↓1)·(↓2·↓1), by simp [←one_add_one_eq_two] ⟩
 
-instance fork_complexity_le {α β γ: Type} [complexity.has_encoding distance_model α] [complexity.has_encoding distance_model β] [complexity.has_encoding distance_model γ]
-  {f: α → β} [cf: complexity.has_complexity distance_model f]
-  {g: α → γ} [cg: complexity.has_complexity distance_model g]:
-  complexity.has_complexity distance_model (fork f g) :=
+instance fork_complexity_le {α β γ: Type} (et: encoding_type)
+  [complexity.has_encoding (distance_model et) α] [complexity.has_encoding (distance_model et) β] [complexity.has_encoding (distance_model et) γ]
+  {f: α → β} [cf: complexity.has_complexity (distance_model et) f]
+  {g: α → γ} [cg: complexity.has_complexity (distance_model et) g]:
+  complexity.has_complexity (distance_model et) (fork f g) :=
 ⟨ ⟨ (λ a, (3:ℕ) + (cf.value.cost a + cg.value.cost a)),
 begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
@@ -50,9 +51,10 @@ end
 
 def curry_prog: encoded_program := ⟨ Λ Λ Λ ↓2·(Λ ↓0·↓2·↓1), by simp[← one_add_one_eq_two] ⟩
 
-instance curry_complexity_le {α β γ: Type} [α_en: complexity.has_encoding distance_model α] [β_en: complexity.has_encoding distance_model β] [complexity.has_encodable_function distance_model γ]
-  {f: (α × β) → γ} [cf: complexity.has_complexity distance_model f]:
-  complexity.has_complexity distance_model (curry f) :=
+instance curry_complexity_le {α β γ: Type} (et: encoding_type)
+  [α_en: complexity.has_encoding (distance_model et) α] [β_en: complexity.has_encoding (distance_model et) β] [complexity.has_encodable_function (distance_model et) γ]
+  {f: (α × β) → γ} [cf: complexity.has_complexity (distance_model et) f]:
+  complexity.has_complexity (distance_model et) (curry f) :=
 ⟨ ⟨ (λ a b, (cf.value.cost (a, b) + ↑(3:ℕ))),
 begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
@@ -65,9 +67,9 @@ begin
     fconstructor,
     refine fp.value·_,
     apply encoding.encoded_data.value,
-    apply complexity.encode distance_model,
+    apply complexity.encode (distance_model et),
     apply (a, b),
-    apply @encoding.prod_encoding α β α_en β_en,
+    apply @encoding.prod_encoding α β et α_en β_en,
     simp,
   end,
   apply distance_le_of_normal_iteration 3,
@@ -80,9 +82,10 @@ end
 
 def uncurry_prog: encoded_program := ⟨ Λ Λ ↓0·↓1, by simp ⟩
 
-instance uncurry_complexity_le {α β γ: Type} [α_en: complexity.has_encoding distance_model α] [β_en: complexity.has_encoding distance_model β] [complexity.has_encodable_function distance_model γ]
-  {f: α → β → γ} [cf: complexity.has_complexity distance_model f]:
-  complexity.has_complexity distance_model (uncurry f) :=
+instance uncurry_complexity_le {α β γ: Type} (et: encoding_type)
+  [α_en: complexity.has_encoding (distance_model et) α] [β_en: complexity.has_encoding (distance_model et) β] [complexity.has_encodable_function (distance_model et) γ]
+  {f: α → β → γ} [cf: complexity.has_complexity (distance_model et) f]:
+  complexity.has_complexity (distance_model et) (uncurry f) :=
 ⟨ ⟨ (λ ab, (cf.value.cost ab.fst ab.snd + ↑(3:ℕ))),
 begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
@@ -96,11 +99,11 @@ begin
     fconstructor,
     refine fp.value·_·_,
     apply encoding.encoded_data.value,
-    apply complexity.encode distance_model,
+    apply complexity.encode (distance_model et),
     apply a,
     apply α_en,
     apply encoding.encoded_data.value,
-    apply complexity.encode distance_model,
+    apply complexity.encode (distance_model et),
     apply b,
     apply β_en,
     simp,

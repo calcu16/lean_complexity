@@ -30,8 +30,8 @@ begin
 end
 end
 
-instance nat_encoding:
-  complexity.has_encoding distance_model ℕ := ⟨ ⟨ λ n,
+instance church_nat_encoding:
+  complexity.has_encoding church_model ℕ := ⟨ ⟨ λ n,
     ⟨ (Λ Λ iterate (↓1:utlc) n ↓0: utlc),
       begin
         induction n,
@@ -58,6 +58,11 @@ instance nat_encoding:
         { simp [function.iterate_succ'] },
         simp [function.iterate_succ', nat.succ_add, y_ih], }
     end ⟩ ⟩
+
+-- instance compute_nat_encoding:
+--   complexity.has_encoding compute_model ℕ := ⟨ ⟨ λ n,
+    
+--   end ⟩ ⟩ 
 
 end nat
 end encoding

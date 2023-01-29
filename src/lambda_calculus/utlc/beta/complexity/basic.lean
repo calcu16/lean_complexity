@@ -12,8 +12,10 @@ open lambda_calculus.utlc.β.encoding
 
 local attribute [simp] β.normal_iteration β.strategic_reduction_step head_reduced
 
+variables {et: encoding_type}
+
 theorem of_distance_le
-  {a: complexity.encodable_function distance_model} {f f': a.unwrap} (g : encoded_program) {g': encoded_program} (fc fc': complexity.cost_function a) (n: ℕ):
+  {a: complexity.encodable_function (distance_model et)} {f f': a.unwrap} (g : encoded_program) {g': encoded_program} (fc fc': complexity.cost_function a) (n: ℕ):
   distance_le n g'.value g.value → complexity.witness a g f fc → f = f' → (fc + ↑n) ≤ fc' →
   complexity.witness a g' f' fc' :=
 begin
@@ -38,16 +40,16 @@ begin
   }
 end
 
-instance value_complexity (α: Type) [en: complexity.has_encoding distance_model α] (a: α):
-  complexity.has_complexity distance_model a :=
+instance value_complexity (α: Type) (et: encoding_type) [en: complexity.has_encoding (distance_model et) α] (a: α):
+  complexity.has_complexity (distance_model et) a :=
   ⟨ ⟨ (0:ℕ),
     ⟨ ⟨ (en.value.encode a).value, (en.value.encode a).proof.left ⟩,
       @distance_le_refl _ has_β_reduction.step _ ⟩ ⟩ ⟩
 
 def id_prog: encoded_program := ⟨ Λ ↓0, by simp ⟩
 
-instance id_complexity (α: Type) [en: complexity.has_encoding distance_model α] (a: α):
-  complexity.has_complexity distance_model (@id α) :=
+instance id_complexity (α: Type) (et: encoding_type) [en: complexity.has_encoding (distance_model et) α] (a: α):
+  complexity.has_complexity (distance_model et) (@id α) :=
   ⟨ ⟨ λ _, (1:ℕ), ⟨ id_prog,
 begin
   intro a,
@@ -57,8 +59,9 @@ end ⟩ ⟩ ⟩
 
 def const_prog: encoded_program := ⟨ Λ Λ ↓1, by simp ⟩
 
-instance const_complexity (α β: Type) [en: complexity.has_encoding distance_model α] [en: complexity.has_encoding distance_model β]:
-  complexity.has_complexity distance_model (@const α β) :=
+instance const_complexity (α β: Type) (et: encoding_type)
+  [en: complexity.has_encoding (distance_model et) α] [en: complexity.has_encoding (distance_model et) β]:
+  complexity.has_complexity (distance_model et) (@const α β) :=
   ⟨ ⟨ λ _ _, (2:ℕ), ⟨ const_prog,
 begin
   intros a b,
@@ -67,10 +70,12 @@ begin
 end ⟩ ⟩ ⟩
 
 instance partial_complexity
-  (α β: Type) [en: complexity.has_encoding distance_model α]  [complexity.has_encodable_function distance_model β]
-  (a: α) {f: α → β} [h: complexity.has_complexity distance_model f] :
-  complexity.has_complexity distance_model (f a) :=
-  ⟨ ⟨ (complexity distance_model f) a,
+  (α β: Type) (et: encoding_type)
+  [en: complexity.has_encoding (distance_model et) α]
+  [complexity.has_encodable_function (distance_model et) β]
+  (a: α) {f: α → β} [h: complexity.has_complexity (distance_model et) f] :
+  complexity.has_complexity (distance_model et) (f a) :=
+  ⟨ ⟨ (complexity (distance_model et) f) a,
   by {
   cases h.value.proof with prog h,
   exact ⟨ ⟨ prog.value·(en.value.encode a).value, by {
@@ -81,8 +86,10 @@ instance partial_complexity
 def compose_prog: encoded_program := ⟨ Λ Λ Λ ↓2·(↓1·↓0), by simp ⟩
 
 instance compose_complexity
-  (α β γ: Type) [α_en: complexity.has_encoding distance_model α] [β_en: complexity.has_encoding distance_model β] [γ_en: complexity.has_encodable_function distance_model γ]
-  (f: α → β) (g: β → γ) [cf: complexity.has_complexity distance_model f] [cg: complexity.has_complexity distance_model g] : complexity.has_complexity distance_model (compose g f) :=
+  (α β γ: Type) (et: encoding_type)
+  [α_en: complexity.has_encoding (distance_model et) α] [β_en: complexity.has_encoding (distance_model et) β] [γ_en: complexity.has_encodable_function (distance_model et) γ]
+  (f: α → β) (g: β → γ) [cf: complexity.has_complexity (distance_model et) f] [cg: complexity.has_complexity (distance_model et) g]:
+  complexity.has_complexity (distance_model et) (compose g f) :=
 ⟨ ⟨ λ a, cg.value.cost (f a) + ↑(3 + (cf.value.cost a):ℕ),
 begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
@@ -111,8 +118,10 @@ end ⟩ ⟩
 def flip_prog: encoded_program := ⟨ Λ Λ Λ ↓2·↓0·↓1, by simp ⟩
 
 instance flip_complexity
-  (α β γ: Type) [α_en: complexity.has_encoding distance_model α] [β_en: complexity.has_encoding distance_model β] [γ_en: complexity.has_encoding distance_model γ]
-  (f: α → β → γ) [cf: complexity.has_complexity distance_model f]: complexity.has_complexity distance_model (flip f) :=
+  (α β γ: Type) (et: encoding_type)
+  [α_en: complexity.has_encoding (distance_model et) α] [β_en: complexity.has_encoding (distance_model et) β] [γ_en: complexity.has_encoding (distance_model et) γ]
+  (f: α → β → γ) [cf: complexity.has_complexity (distance_model et) f]:
+  complexity.has_complexity (distance_model et) (flip f) :=
 ⟨ ⟨ λ b a, (cf.value.cost a b) + ↑3,
 begin
   rcases cf.value with ⟨cfc, fp, cfp⟩,
@@ -127,6 +136,21 @@ begin
   apply cfp,
   simp [add_comm 3],
 end ⟩ ⟩
+
+def ycomb: utlc := Λ (Λ ↓1·(↓0·↓0))·(Λ ↓1·(↓0·↓0))
+def yrec (f: utlc): utlc := ycomb·f
+
+theorem yrec_apply {f: utlc}: distance_le 3 (yrec f) (f·yrec f) :=
+begin
+  rw [yrec, ycomb],
+  apply distance_le_trans',
+  apply distance_le_of_normal_iteration 2,
+  simp,
+  apply dot_distance_le_dot_right,
+  apply distance_le_symm,
+  apply distance_le_of_normal_iteration 1,
+  simp,
+end
 
 end complexity
 end β

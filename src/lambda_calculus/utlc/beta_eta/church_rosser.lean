@@ -33,35 +33,35 @@ begin
       simp [hcx] },
     rw [hac] at hab,
     obtain hab|hab|hab := β.dot_step_cases hab;
-    rcases hab with ⟨b₂, hab , hb₂⟩,
+    rcases hab with ⟨b₂, hb₂, hab⟩,
     { 
-      cases shift_of_uses (show b₂.uses 1 = 0, begin
+      cases shift_of_uses_zero (show b₂.uses 1 = 0, begin
         rw [← lambda_uses, ← hab],
-        exact shift_uses_zero _,
+        exact shift_uses_self _ _,
       end) with b₃ hb₃,
       rw [hb₃, ← lambda_shift, shift_inj_iff] at hab,
-      rw [hab, ←hb₂, hb₃, shift_succ_substitiution_down],
+      rw [hab, hb₂, hb₃, shift_succ_substitiution_down],
       use Λ b₃,
       exact ⟨ by refl, or.inl rfl⟩ },
-    { rw [hab],
-      cases shift_of_uses (β.uses_zero_step hb₂ (shift_uses_zero _)) with b₃ hb₃,
+    { rw [hb₂],
+      cases shift_of_uses_zero (β.uses_zero_step hab (shift_uses_self _ _)) with b₃ hb₃,
       rw [hb₃],
-      rw [hb₃] at hb₂,
+      rw [hb₃] at hab,
       use b₃,
       split,
       apply relation.refl_trans_gen.single,
       apply η.lambda_step_head,
       right,
       apply (shift_reduction_step_shift_iff _).mp,
-      apply hb₂,
+      apply hab,
       apply β.shift_head_step_shift },
-    { simp at hb₂, contradiction } },
+    { simp at hab, contradiction } },
   { obtain hab|hab|hab := β.dot_step_cases hab;
     cases η.dot_step_cases' hac with hac hac;
     rcases hab with ⟨x, hax, hxb⟩;
     rcases hac with ⟨y, z, hza, hcyz, hay⟩,
-    { rw [←hxb, ←hza, hcyz],
-      rw [hax] at hay,
+    { rw [hax, ←hza, hcyz],
+      rw [hxb] at hay,
       cases η.lambda_step_cases' hay with hay hay;
       rcases hay with ⟨y₁, hy₁, hxy₁⟩,
       { rw [hy₁],
@@ -75,7 +75,7 @@ begin
       { simp [hxy₁, hy₁],
         use y₁·z,
         exact ⟨by refl, or.inl rfl⟩ } },
-    { rw [← hxb, hcyz, hza, hax],
+    { rw [hax, hcyz, hza, hxb],
       use x[0:=z],
       split,
       apply substitution_reduction_step_right,
@@ -114,7 +114,7 @@ begin
       cases hym,
       { simp [hym] },
       right,
-      apply β.dot_step_dot_right hym }
+      apply β.dot_step_dot_right hym },
   }
 end
 

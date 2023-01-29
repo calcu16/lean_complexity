@@ -25,11 +25,9 @@ def cost {α: Type}
   (c_dot: utlc → utlc → α → α → ℕ): utlc → ℕ
 | (↓n) := c_down n + 8
 | (Λ f) := c_lambda f (rf f) + cost f + 9
-| (f·g) := c_dot f g (rf f) (rf g) + cost f + cost g + 15
+| (f·g) := c_dot f g (rf f) (rf g) + cost f + cost g + 10
 
 end rec_complexity
-
-def y_combinator: encoded_program := ⟨ Λ (Λ ↓1·(↓0·↓0))·(Λ ↓1·(↓0·↓0)), by simp ⟩
 
 local attribute [simp] closed closed_below
 local attribute [simp] β.normal_iteration β.strategic_reduction_step
@@ -37,27 +35,12 @@ local attribute [simp] substitution down_shift head_reduced
 local attribute [simp] complexity.cast_unwrap distance_model
 local attribute [simp] encoding.utlc.encode_utlc
 
-def ycomb: utlc := Λ (Λ ↓1·(↓0·↓0))·(Λ ↓1·(↓0·↓0))
-
 def handle_down (f y: utlc): utlc := f
 def handle_lambda (f y: utlc): utlc := Λ (f ↑¹ 0)·↓0·((y ↑¹ 0)·↓0)
-def handle_dot (f y: utlc): utlc := Λ ↓0·(f ↑¹ 0)·(↓0·(Λ Λ (y ↑¹ 0 ↑¹ 1 ↑¹ 2)·↓1))·(↓0·Λ (y ↑¹ 0 ↑¹ 1))
+def handle_dot (f y: utlc): utlc := Λ Λ (f ↑¹ 0 ↑¹ 1)·↓1·↓0·((y ↑¹ 0 ↑¹ 1)·↓1)·((y ↑¹ 0 ↑¹ 1)·↓0)
 def rec_utlc (y g f₀ f₁ f₂: utlc): utlc := g·handle_down f₀ y·handle_lambda f₁ y·handle_dot f₂ y
-def yrec (f: utlc): utlc := ycomb·f
 
 local notation a `[` b `:=` c  `]` : 70 := has_substitution.substitution a b c
-
-theorem yrec_apply {f: utlc}: distance_le 3 (yrec f) (f·yrec f) :=
-begin
-  rw [yrec, ycomb],
-  apply distance_le_trans',
-  apply distance_le_of_normal_iteration 2,
-  simp,
-  apply dot_distance_le_dot_right,
-  apply distance_le_symm,
-  apply distance_le_of_normal_iteration 1,
-  simp,
-end
 
 theorem rec_utlc_sub {y g f₀ f₁ f₂: utlc} (n: ℕ) (x: utlc):
   (rec_utlc y g f₀ f₁ f₂)[n:=x] = (rec_utlc (y[n:=x]) (g[n:=x]) (f₀[n:=x]) (f₁[n:=x]) (f₂[n:=x])) :=
@@ -67,10 +50,10 @@ begin
   all_goals { linarith },
 end
 
-theorem rec_utlc_down (y: utlc) (n: ℕ) (f₀ f₁ f₂: utlc):
+theorem rec_utlc_down (et: encoding_type) [ℕ_en: has_encoding (distance_model et) ℕ] (y: utlc) (n: ℕ) (f₀ f₁ f₂: utlc):
   distance_le 3
-    (rec_utlc y (encoding.utlc.encode_utlc (↓n)).value f₀ f₁ f₂)
-    (f₀·(complexity.encode distance_model n).value) :=
+    (rec_utlc y (encoding.utlc.encode_utlc et (↓n)).value f₀ f₁ f₂)
+    (f₀·(complexity.encode (distance_model et) n).value) :=
 begin
   rw [rec_utlc, utlc.encode_utlc, β.encoding.alternative],
   simp,
@@ -78,10 +61,10 @@ begin
   simp [handle_down],
 end
 
-theorem rec_utlc_lambda (y g f₀ f₁ f₂: utlc):
+theorem rec_utlc_lambda (et: encoding_type) [ℕ_en: has_encoding (distance_model et) ℕ] (y g f₀ f₁ f₂: utlc):
   distance_le 4
-    (rec_utlc y (encoding.utlc.encode_utlc (Λ g)).value f₀ f₁ f₂)
-    (f₁·(complexity.encode distance_model g).value·(y·(complexity.encode distance_model g).value)) :=
+    (rec_utlc y (encoding.utlc.encode_utlc et (Λ g)).value f₀ f₁ f₂)
+    (f₁·(complexity.encode (distance_model et) g).value·(y·(complexity.encode (distance_model et) g).value)) :=
 begin
   rw [rec_utlc, utlc.encode_utlc, β.encoding.alternative],
   simp,
@@ -90,36 +73,25 @@ begin
   refl,
 end
 
-
-theorem rec_utlc_dot (y g₀ g₁ f₀ f₁ f₂: utlc):
-  distance_le 10
-    (rec_utlc y (encoding.utlc.encode_utlc (g₀·g₁)).value f₀ f₁ f₂)
-    (f₂·(complexity.encode distance_model g₀).value·(complexity.encode distance_model g₁).value·(y·(complexity.encode distance_model g₀).value)·(y·(complexity.encode distance_model g₁).value)) :=
+theorem rec_utlc_dot (et: encoding_type) [ℕ_en: has_encoding (distance_model et) ℕ] (y g₀ g₁ f₀ f₁ f₂: utlc):
+  distance_le 5
+    (rec_utlc y (encoding.utlc.encode_utlc et (g₀·g₁)).value f₀ f₁ f₂)
+    (f₂·(complexity.encode (distance_model et) g₀).value·(complexity.encode (distance_model et) g₁).value·(y·(complexity.encode (distance_model et) g₀).value)·(y·(complexity.encode (distance_model et) g₁).value)) :=
 begin
-  rw [rec_utlc, utlc.encode_utlc, β.encoding.alternative, β.encoding.pair],
+  rw [rec_utlc, utlc.encode_utlc, β.encoding.alternative],
   simp,
-  apply distance_le_trans',
   apply distance_le_of_normal_iteration 5,
-  simp [handle_dot],
-  apply distance_le_trans',
-  apply dot_distance_le_dot_right,
-  apply distance_le_of_normal_iteration 2,
-  simp,
-  apply dot_distance_le_dot_left,
-  apply dot_distance_le_dot_right,
-  apply distance_le_of_normal_iteration 3,
-  simp,
-  refl,
-  refl,
-  simp,
+  simp [handle_dot, and_assoc],
+  refine ⟨ rfl, rfl, rfl, rfl ⟩,
 end
 
 instance rec_complexity
-  (α: Type) [α_en: has_encoding distance_model α]
-  (f₀: ℕ → α) [cf₀: has_complexity distance_model f₀]
-  (f₁: utlc → α → α) [cf₁: has_complexity distance_model f₁]
-  (f₂: utlc → utlc → α → α → α) [cf₂: has_complexity distance_model f₂]:
-  has_complexity distance_model (simp_rec f₀ f₁ f₂) :=
+  (α: Type) (et: encoding_type) [α_en: has_encoding (distance_model et) α]
+  [ℕ_en: has_encoding (distance_model et) ℕ]
+  (f₀: ℕ → α) [cf₀: has_complexity (distance_model et) f₀]
+  (f₁: utlc → α → α) [cf₁: has_complexity (distance_model et) f₁]
+  (f₂: utlc → utlc → α → α → α) [cf₂: has_complexity (distance_model et) f₂]:
+  has_complexity (distance_model et) (simp_rec f₀ f₁ f₂) :=
 begin
   fconstructor,
   fconstructor,
@@ -180,11 +152,11 @@ begin
 end
 
 instance size_complexity:
-  has_complexity distance_model utlc.size :=
+  has_complexity church_model utlc.size :=
 begin
   fconstructor,
   fconstructor,
-  exact (λ f, 72 * f.size: utlc → ℕ),
+  exact (λ f, 67 * f.size: utlc → ℕ),
   apply omega_equiv,
   rotate 2,
   exact (simp_rec
