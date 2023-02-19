@@ -24,19 +24,20 @@ namespace complexity
  -  has_encoding class
  -/
 
-structure model (α β γ: Type) [has_equiv β]  [preorder γ]  [has_add γ] :=
+structure model (α β γ: Type*) [has_equiv β]  [preorder γ]  [has_add γ] :=
 mk ::
   (accepts_with_cost : α → β → γ → Prop)
   (application : α → β → α)
   (cost_inj: ∀ {a: α} {b₀ b₁: β} {c₀ c₁: γ}, accepts_with_cost a b₀ c₀ → accepts_with_cost a b₁ c₁ → b₀ ≈ b₁)
   (cost_mono : ∀ {a : α} {b : β} {c₀ c₁ : γ}, c₀ ≤ c₁ → accepts_with_cost a b c₀ → accepts_with_cost a b c₁)
 
-variables {α β γ: Type} [has_equiv β] [preorder γ] [has_add γ]
+universes u₀ u₁ u₂
+variables {α: Type u₀} {β: Type u₁} {γ: Type u₂} [has_equiv β] [preorder γ] [has_add γ]
 
 namespace model
-@[simp] def program_type: model α β γ → Type := λ _, α
-@[simp] def data_type: model α β γ → Type := λ _, β
-@[simp] def cost_type: model α β γ → Type := λ _, γ
+@[simp] def program_type: model α β γ → Type u₀ := λ _, α
+@[simp] def data_type: model α β γ → Type u₁ := λ _, β
+@[simp] def cost_type: model α β γ → Type u₂ := λ _, γ
 end model
 
 structure encoding (m: model α β γ) (δ: Type) :=
@@ -63,7 +64,7 @@ class has_encoding (m: model α β γ) (δ: Type):= (value: encoding m δ)
 
 def encode (m: model α β γ) {δ: Type} [f: has_encoding m δ] := f.value.encode
 
-inductive encodable_function (m: model α β γ): Type 1
+inductive encodable_function (m: model α β γ)
 | result: Π {δ: Type}, encoding m δ → encodable_function
 | application: Π {δ: Type}, encoding m δ → encodable_function → encodable_function
 
@@ -109,7 +110,7 @@ instance encodable_application (δ: Type) [f: has_encoding m δ] (ε: Type) [g: 
 
 def result_type (m: model α β γ) (δ: Type) [f: has_encodable_function m δ] := f.value.value.result_type
 
-def cost_function: encodable_function m → Type
+def cost_function: encodable_function m → Type u₂
 | (encodable_function.result _) := γ
 | (encodable_function.application en c) := en.type → cost_function c
 
@@ -180,7 +181,7 @@ end cost_function
 -- witness checks if the program provided is accepted by the cost function for all inputs
 -- since cost_function is monotonic on the cost, this is a less than or equal relationship
 def witness: Π (enf : encodable_function m), α → enf.unwrap → (cost_function enf) → Prop
-| (encodable_function.result en) := λ prog data, en.model.1 prog (en.encode data)
+| (encodable_function.result en) := λ prog data, en.model.accepts_with_cost prog (en.encode data)
 | (encodable_function.application en b) := λ prog f cost, ∀ arg : en.type,
   witness b (encoding.application en prog arg) (f arg) (cost arg)
 
