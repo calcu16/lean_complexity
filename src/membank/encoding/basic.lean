@@ -53,54 +53,32 @@ end
 
 local attribute [simp] application_def' program.apply stack.step bank.getmp bank.getm bank.getv bank.setmp source.getv get_push_arg_0 get_push_arg_1 set_push_arg_0 set_push_arg_1 frame.setm
 
-instance compose_complexity
-  (α β γ: Type)
-  [α_en: complexity.has_encoding (runtime_model μ) α] [β_en: complexity.has_encoding (runtime_model μ) β] [γ_en: complexity.has_encoding (runtime_model μ) γ]
-  (f: α → β) (g: β → γ) [cf: complexity.has_complexity (runtime_model μ) f] [cg: complexity.has_complexity (runtime_model μ) g]:
-  complexity.has_complexity (runtime_model μ) (compose g f) :=
-⟨ ⟨ λ a, ((cg.value.cost (f a) + 1:ℕ) + (cf.value.cost a+1:ℕ) + 9:ℕ),
-begin
-  rcases cf.value with ⟨cfc, fp, cfp⟩,
-  rcases cg.value with ⟨cgc, gp, cgp⟩,
-  fconstructor,
-  fconstructor,
-  refine [_, _, _, _, _, _, _, _],
-  exact instruction.move [(source.imm 0)] [],
-  exact instruction.move [(source.imm 1)] [],
-  exact instruction.move [(source.imm 1), (source.imm 0)] [(source.imm 0), (source.imm 0), (source.imm 1)],
-  exact instruction.move [(source.imm 0), (source.imm 0)] [(source.imm 0), (source.imm 0), (source.imm 0)],
-  exact instruction.call fp.fst (source.imm 0),
-  exact instruction.move [(source.imm 1), (source.imm 1)] [(source.imm 0)],
-  exact instruction.call gp.fst (source.imm 1),
-  exact instruction.move [] [(source.imm 0)],
-  exact push_arg fp.snd gp.snd,
-  intros a,
-  simp,
-  rcases stack.step_return (cfp a) _ with ⟨m, hm, h⟩,
-  rcases stack.step_return (cgp (f a)) _ with ⟨m', hm', h'⟩,
-  simp [complexity.has_encoding.value] at h h',
-  apply complexity.model.cost_mono,
-  apply add_le_add,
-  apply add_le_add,
-  exact hm',
-  exact hm,
-  refl,
-  apply stack.step_trans 5,
-  simp [complexity.has_encoding.value],
-  apply stack.step_trans,
-  apply h,
-  simp,
-  clear h,
-  apply stack.step_trans 2,
-  simp,
-  apply stack.step_trans m' 2,
-  apply h',
-  clear h',
-  simp [← stack.result_def, complexity.cast_unwrap, compose],
-  refl,
-  refl,
-  ring,
-end ⟩ ⟩
+
+-- instance compose_complexity
+--   (α β γ: Type)
+--   [α_en: complexity.has_encoding (runtime_model μ) α] [β_en: complexity.has_encoding (runtime_model μ) β] [γ_en: complexity.has_encoding (runtime_model μ) γ]
+--   (f: α → β) (g: β → γ) [cf: complexity.has_complexity (runtime_model μ) f] [cg: complexity.has_complexity (runtime_model μ) g]:
+--   complexity.has_complexity (runtime_model μ) (compose g f) :=
+-- ⟨ ⟨ λ a, ((cg.value.cost (f a) + 1:ℕ) + (cf.value.cost a+1:ℕ) + 9:ℕ),
+-- begin
+--   rcases cf.value with ⟨cfc, fp, cfp⟩,
+--   rcases cg.value with ⟨cgc, gp, cgp⟩,
+--   fconstructor,
+--   fconstructor,
+--   refine [_, _, _, _, _, _, _, _],
+--   exact instruction.move [(source.imm 0)] [],
+--   exact instruction.move [(source.imm 1)] [],
+--   exact instruction.move [(source.imm 1), (source.imm 0)] [(source.imm 0), (source.imm 0), (source.imm 1)],
+--   exact instruction.move [(source.imm 0), (source.imm 0)] [(source.imm 0), (source.imm 0), (source.imm 0)],
+--   exact instruction.call fp.fst (source.imm 0),
+--   exact instruction.move [(source.imm 1), (source.imm 1)] [(source.imm 0)],
+--   exact instruction.call gp.fst (source.imm 1),
+--   exact instruction.move [] [(source.imm 0)],
+--   exact push_arg fp.snd gp.snd,
+--   intros a,
+--   simp,
+--   -- TODO
+-- end ⟩ ⟩
 
 end encoding
 end membank
