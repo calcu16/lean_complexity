@@ -315,51 +315,48 @@ begin
   linarith,
 end
 
-theorem maintains_is_matching (ap: alternating_path p M):
-  M.is_matching → (M ∆ p).is_matching :=
-begin
-  intro hM,
-  intro x,
-  intro hx,
-  by_cases x ∈ (p:G.subgraph).verts,
-  { rw [p.coe_verts_iff_get_vert] at h,
-    rcases h with ⟨n, hn, h⟩,
-    rw [← h],
-    cases eq_or_lt_of_le hn with hn hn,
-    { rw [hn, walk.get_vert_length],
-      exact subgraph.symm_diff_adj_unique_right' _ _ _ (λ _, not_imp_not.mpr M.edge_vert ap.end_inv) (p.end_unique_adj ap.not_nil) },
-    cases n,
-    { rw [walk.get_vert_zero],
-      exact subgraph.symm_diff_adj_unique_right' _ _ _ (λ _, not_imp_not.mpr M.edge_vert ap.start_inv) (p.start_unique_adj ap.not_nil) },
-    cases ap.alt_inv _ (walk.adj_get_vert_succ' _ hn) (walk.adj_get_vert_pred' _ (nat.zero_lt_succ _) (le_of_lt hn)),
-    { apply hM.unique_symm_diff
-      h_1.left h_1.right
-      (walk.adj_get_vert_succ' _ hn)
-      (walk.adj_get_vert_pred' _ (nat.zero_lt_succ _) (le_of_lt hn))
-      (λ _, p.neighbors' (le_of_lt hn)) },
-    { apply hM.unique_symm_diff
-        h_1.left h_1.right
-        (walk.adj_get_vert_pred' _ (nat.zero_lt_succ _) (le_of_lt hn))
-        (walk.adj_get_vert_succ' _ hn),
-      intro y,
-      simpa [or.comm] using p.neighbors' (le_of_lt hn) },
-    apply p.get_vert_inj_ne (nat.succ_le_of_lt hn) (trans (nat.sub_le _ _) (le_of_lt hn)),
-    rw [nat.succ_sub_one, nat.succ_eq_add_one, nat.succ_eq_add_one],
-    linarith },
-  { apply M.symm_diff_adj_unique_left' _ _ _ (hM (M.symm_diff_verts_not_right _ h hx)),
-    intro y,
-    contrapose! h,
-    exact subgraph.edge_vert _ h }
-end
+-- theorem maintains_is_matching (ap: alternating_path p M):
+--   M.is_matching → (M ∆ p).is_matching :=
+-- begin
+--   intro hM,
+--   intro x,
+--   intro hx,
+--   by_cases x ∈ (p:G.subgraph).verts,
+--   { rw [p.coe_verts_iff_get_vert] at h,
+--     rcases h with ⟨n, hn, h⟩,
+--     rw [← h],
+--     cases eq_or_lt_of_le hn with hn hn,
+--     { rw [hn, walk.get_vert_length],
+--       exact subgraph.symm_diff_adj_unique_right' _ _ _ (λ _, not_imp_not.mpr M.edge_vert ap.end_inv) (p.end_unique_adj ap.not_nil) },
+--     cases n,
+--     { rw [walk.get_vert_zero],
+--       exact subgraph.symm_diff_adj_unique_right' _ _ _ (λ _, not_imp_not.mpr M.edge_vert ap.start_inv) (p.start_unique_adj ap.not_nil) },
+--     cases ap.alt_inv _ (walk.adj_get_vert_succ' _ hn) (walk.adj_get_vert_pred' _ (nat.zero_lt_succ _) (le_of_lt hn)),
+--     { apply hM.unique_symm_diff
+--       h_1.left h_1.right
+--       (walk.adj_get_vert_succ' _ hn)
+--       (walk.adj_get_vert_pred' _ (nat.zero_lt_succ _) (le_of_lt hn))
+--       (λ _, p.neighbors' (le_of_lt hn)) },
+--     { apply hM.unique_symm_diff
+--         h_1.left h_1.right
+--         (walk.adj_get_vert_pred' _ (nat.zero_lt_succ _) (le_of_lt hn))
+--         (walk.adj_get_vert_succ' _ hn),
+--       intro y,
+--       simpa [or.comm] using p.neighbors' (le_of_lt hn) },
+--     apply p.get_vert_inj_ne (nat.succ_le_of_lt hn) (trans (nat.sub_le _ _) (le_of_lt hn)),
+--     rw [nat.succ_sub_one, nat.succ_eq_add_one, nat.succ_eq_add_one],
+--     linarith },
+--   { apply M.symm_diff_adj_unique_left' _ _ _ (hM (M.symm_diff_verts_not_right _ h hx)),
+--     intro y,
+--     contrapose! h,
+--     exact subgraph.edge_vert _ h }
+-- end
 
 end alternating_path
 
 structure augmenting_path (p: path G u v) (M: G.subgraph) extends alternating_path p M: Prop :=
   (not_nil: u ≠ v)
   (end_inv: v ∉ M.verts)
-
-
-
 
 namespace augmenting_path
 
