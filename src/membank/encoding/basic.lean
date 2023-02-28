@@ -26,6 +26,9 @@ theorem application_def (p: program μ) (arg₀ arg₁: bank μ):
 theorem application_def' (p: program μ × bank μ) (arg: bank μ):
  complexity.model.application (runtime_model μ) p arg = (p.fst, push_arg p.snd arg) := rfl
 
+theorem get_push_arg_v (arg₀ arg₁: bank μ): (push_arg arg₀ arg₁).getv = 1 :=
+by simp [push_arg, bank.get]
+
 theorem get_push_arg_0 (arg₀ arg₁: bank μ): (push_arg arg₀ arg₁).getm 0 = arg₀ :=
 by simp [push_arg, bank.getm]
 

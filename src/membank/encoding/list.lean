@@ -11,6 +11,7 @@ universe u
 
 variables {μ: Type u} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
 local attribute [simp] application_def' program.apply stack.step bank.getmp bank.getm bank.getv bank.setmp source.getv get_push_arg_0 get_push_arg_1 set_push_arg_0 set_push_arg_1 frame.setm
+local attribute [simp] stack.step_helper get_push_arg_v
 
 def encode_list {α: Type*} [complexity.has_encoding (runtime_model μ) α]: list α → bank μ
 | [] := bank.null
@@ -81,6 +82,16 @@ def split (μ: Type u) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:
   instruction.move [source.imm 1] [source.imm 1, source.imm 0, source.imm 0]
   -- 1 [1 a_hd rhs] lhs
 ]
+
+  -- theorem split_sound {α: Type*} [complexity.has_encoding (runtime_model μ) α] (a: list α):
+  --   (split μ).costed_result (push_arg (encode_list a) bank.null) (8 * a.length + 2) (push_arg (encode_list (list.split a).fst) (encode_list (list.split a).snd)) :=
+  -- begin
+  --   induction a,
+  --   simp [program.costed_result, split],
+
+
+    
+  -- end
 
 -- compare returns 0 if a < b and 1 otherwise 
 def merge (p_cmp: program μ): program μ :=
@@ -183,6 +194,8 @@ def merge_sort (p_cmp: program μ): program μ :=
   -- 1 sorted_a rhs
   instruction.move [] [source.imm 0]
 ]
+
+example : ∀ n, Σ x : fin n, 
 
 end encoding
 end membank
