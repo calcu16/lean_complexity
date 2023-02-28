@@ -95,6 +95,10 @@ theorem equiv_mk [has_zero α] {m n: bank α}:
   m.getv = n.getv → (∀ a, m.getm a ≈ n.getm a) → m ≈ n :=
 λ hv hm p, list.cases_on p hv hm
 
+theorem equiv_iff [has_zero α] {m n: bank α}:
+  m ≈ n ↔ m.getv = n.getv ∧ (∀ a, m.getm a ≈ n.getm a) :=
+⟨ λ h, ⟨equiv_getv h, λ _, equiv_getm _ h ⟩, λ h, equiv_mk h.left h.right ⟩
+
 end bank
 
 namespace source

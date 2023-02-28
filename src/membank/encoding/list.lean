@@ -55,7 +55,7 @@ end ⟩ ⟩
 
 -- splits a list into 2 lists of almost equal length
 def split (μ: Type u) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]: program μ :=
-[ -- 0 a null
+[ -- 1 a null
   instruction.binary_op (λ a b, a) [] [source.imm 0] [],
   -- (a.nonnil) a null
   instruction.ite (λ a, a = 0) [
@@ -68,8 +68,10 @@ def split (μ: Type u) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:
   -- 1 [1 a_hd a_tl] null
   instruction.move [source.imm 1] [source.imm 0, source.imm 0],
   -- 1 [1 a_hd a_tl] a_hd
-  instruction.move [source.imm 0] [source.imm 0, source.imm 1],
-  -- 1 a_tl a_hd
+  instruction.move [source.imm 0, source.imm 0] [source.imm 0, source.imm 1],
+  -- 1 [1 a_tl a_tl] a_hd
+  instruction.clear [source.imm 0, source.imm 1],
+  -- 1 [1 a_tl null] a_hd
   instruction.recurse (source.imm 0),
   -- 1 [1 lhs rhs] a_hd
   instruction.move [source.imm 1] [],
@@ -105,21 +107,27 @@ def merge (p_cmp: program μ): program μ :=
   -- 1 [1 a_hd a_tl] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
   instruction.clear [source.imm 0, source.imm 1],
   -- 1 [1 a_hd null] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
-  instruction.binary_op (λ _ _, 1) [] [source.imm 0, source.imm 1] [],
+  instruction.binary_op (λ _ _, 1) [source.imm 0, source.imm 1] [] [],
   -- 1 [1 a_hd [1 null null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
   instruction.move [source.imm 0, source.imm 1, source.imm 0] [source.imm 1, source.imm 1, source.imm 0],
   -- 1 [1 a_hd [1 b_hd null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
   instruction.call p_cmp (source.imm 0),
-  -- (a_hd ≥ b_hd) [1 a_hd [1 b_hd null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
-  instruction.move [source.imm 0, source.imm 0] [source.imm 1, source.acc, source.imm 0],
-  -- (a_hd ≥ b_hd) [1 (a_tl|b_tl) [1 b_hd null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
+  -- 1 [(a_hd ≥ b_hd) null null] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
+  instruction.binary_op (λ a _, a) [] [source.imm 0] [],
+  -- (a_hd ≥ b_hd) [(a_hd ≥ b_hd) null null] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
+  instruction.binary_op (λ _ _, 1) [source.imm 0] [] [],
+  -- (a_hd ≥ b_hd) [1 null null] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
+  instruction.move [source.imm 0, source.imm 0] [source.imm 1, source.acc, source.imm 1],
+  -- (a_hd ≥ b_hd) [1 (a_tl|b_tl) null] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
   instruction.binary_op (λ a _, if a = 0 then 1 else 0) [] [] [],
-  -- (a_hd < b_hd) [1 (a_tl|b_tl) [1 b_hd null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
+  -- (a_hd < b_hd) [1 (a_tl|b_tl) null] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
+  instruction.binary_op (λ _ _, 1) [source.imm 0, source.imm 1] [] [],
+  -- (a_hd < b_hd) [1 (a_tl|b_tl) [1 null null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
   instruction.move [source.imm 0, source.imm 1, source.imm 0] [source.imm 1, source.acc],
   -- (a_hd < b_hd) [1 (a_tl|b_tl) [1 (b|a) null]] [1 [1 a_hd a_tl] [1 b_hd b_tl]]
   instruction.recurse (source.imm 0),
   -- (a_hd < b_hd) c_tl [1 [1 a_hd a_tl] [1 b_hd b_tl]]
-  instruction.move [source.imm 0] [source.imm 1, source.acc],
+  instruction.move [source.imm 1, source.acc] [source.imm 0],
   -- (a_hd < b_hd) c_tl [1 c_tl|[1 a_hd a_tl] [1 b_hd b_tl]|c_tl],
   instruction.binary_op (λ a _, if a = 0 then 1 else 0) [] [] [],
   -- (a_hd ≥ b_hd) c_tl [1 c_tl|[1 a_hd a_tl] [1 b_hd b_tl]|c_tl],
@@ -127,32 +135,52 @@ def merge (p_cmp: program μ): program μ :=
   -- (a_hd ≥ b_hd) a_hd|b_hd [1 c_tl|[1 a_hd a_tl] [1 b_hd b_tl]|c_tl],
   instruction.binary_op (λ a _, if a = 0 then 1 else 0) [] [] [],
   -- (a_hd < b_hd) c_hd [1 c_tl|[1 a_hd a_tl] [1 b_hd b_tl]|c_tl],
-  instruction.move [source.imm 1] [source.imm 1, source.acc]
+  instruction.move [source.imm 1] [source.imm 1, source.acc],
+  -- (a_hd < b_hd) c_hd c_tl
+  instruction.binary_op (λ a b, 1) [] [] []
   -- 1 c_hd c_tl
 ]
 
 def merge_sort (p_cmp: program μ): program μ :=
-[ -- 0 a null
-  instruction.binary_op (λ a b, a) [] [source.imm 0] [],
-  -- (a.nonnil) a null
+[ -- 1 a null
+  instruction.binary_op (λ a b, a) [] [source.imm 0, source.imm 1] [],
+  -- (a.tail.nonnil) a null
   instruction.ite (λ a, a = 0) [
-    -- 0 list.nil null
+    -- 0 a null
     instruction.move [] [source.imm 0]
-    -- list.nil
+    -- a
   ],
   -- 1 [1 a_hd a_tl] null
+  instruction.move [source.imm 0] [],
+  -- 1 [1 [1 a_hd a_tl] null] null
   instruction.call (split μ) (source.imm 0),
   -- 1 [1 lhs rhs] null
-  instruction.move [source.imm 1] [source.imm 0, source.imm 1],
-  -- 1 [1 lhs rhs] rhs
+  instruction.move [source.imm 1, source.imm 0] [source.imm 0, source.imm 1],
+  -- 1 [1 lhs rhs] [0 rhs null]
   instruction.clear [source.imm 0, source.imm 1],
-  -- 1 [1 lhs null] rhs
-  instruction.move [source.imm 0, source.imm 1, source.imm 0] [source.imm 0],
-  -- 1 [1 lhs [0 rhs null]] rhs
-  instruction.binary_op (λ a b, 1) [source.imm 0, source.imm 1] [] [],
-  -- 1 [1 lhs [1 rhs null]] rhs
+  -- 1 [1 lhs null] [0 rhs null]
+  instruction.recurse (source.imm 0),
+  -- 1 sorted_lhs [0 rhs null]
+  instruction.move [source.imm 1, source.imm 1] [source.imm 0],
+  -- 1 sorted_lhs [0 rhs sorted_lhs]
+  instruction.clear [source.imm 0],
+  -- 1 null [0 rhs sorted_lhs]
+  instruction.move [source.imm 0, source.imm 0] [source.imm 1, source.imm 0],
+  -- 1 [0 rhs null] [0 rhs sorted_lhs]
+  instruction.binary_op (λ _ _, 1) [source.imm 0] [] [],
+  -- 1 [1 rhs null] [0 rhs sorted_lhs]
+  instruction.recurse (source.imm 0),
+  -- 1 sorted_rhs [0 rhs sorted_lhs]
+  instruction.binary_op (λ _ _, 1) [source.imm 1] [] [],
+  -- 1 sorted_rhs [1 rhs sorted_lhs]
+  instruction.move [source.imm 1, source.imm 0] [source.imm 1, source.imm 1],
+  -- 1 sorted_rhs [1 sorted_lhs sorted_lhs]
+  instruction.clear [source.imm 1, source.imm 1],
+  -- 1 sorted_rhs [1 sorted_lhs null]
+  instruction.move [source.imm 0] [],
+  -- 1 [1 sorted_rhs [1 sorted_lhs null]] [1 sorted_lhs null]
   instruction.call (merge p_cmp) (source.imm 0),
-  -- 1 c rhs
+  -- 1 sorted_a rhs
   instruction.move [] [source.imm 0]
 ]
 
