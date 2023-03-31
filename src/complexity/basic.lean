@@ -79,6 +79,10 @@ namespace encodable_function
 | (result en) := en.type
 | (application _ b) := b.result_type
 
+def with_result (δ: Type*): encodable_function m → Type*
+| (result _) := δ
+| (@application _ _ _ _ _ _ _ t _ f) := t → with_result f
+
 end encodable_function
 variables {enf: encodable_function m}
 
@@ -109,6 +113,9 @@ instance encodable_application (δ: Type) [f: has_encoding m δ] (ε: Type) [g: 
   ⟨ ⟨ encodable_function.application f.value g.value.value, ftype rfl g.value.sound ⟩ ⟩
 
 def result_type (m: model α β γ) (δ: Type) [f: has_encodable_function m δ] := f.value.value.result_type
+
+def with_result' (m: model α β γ) (δ :Type) (η: Type*) [ef: has_encodable_function m δ]: Type* :=
+  encodable_function.with_result δ ef.value.value
 
 def cost_function: encodable_function m → Type u₂
 | (encodable_function.result _) := γ
@@ -185,6 +192,7 @@ def witness: Π (enf : encodable_function m), α → enf.unwrap → (cost_functi
 | (encodable_function.application en b) := λ prog f cost, ∀ arg : en.type,
   witness b (encoding.application en prog arg) (f arg) (cost arg)
 
+
 theorem witness_trans (enf: encodable_function m) {cf cg: cost_function enf}:
   ∀ {prog: α} {f: enf.unwrap}, cf ≤ cg → witness enf prog f cf → witness enf prog f cg :=
 begin
@@ -195,6 +203,8 @@ begin
   exact enf_ih (hc _) (hf _),
 end
   
+def witness' (m: model α β γ) {δ: Type} [enf: has_encodable_function m δ] (prog: α) (f: δ) (cf: cost_function enf.value.value) :=
+  witness enf.value.value prog (cast_unwrap f) cf
 
 def complexity_le [enf: has_encodable_function m δ] (f: δ) (cf: cost_function enf.value.value) :=
   ∃ prog: α, witness enf.value.value prog (cast_unwrap f) cf

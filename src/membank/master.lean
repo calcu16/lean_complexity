@@ -160,7 +160,7 @@ apply congr_arg;
 apply program.has_result_unique hr hr',
 end
 
-theorem step_of_interal_step {p: program α} {i: instruction α} (is: list (instruction α)) {m: bank α} {c r: ℕ} (hp: p ≠ []):
+theorem step_of_internal_step {p: program α} {i: instruction α} {is: list (instruction α)} {m: bank α} {c r: ℕ} (hp: p ≠ []):
   external_cost_le p i m c r → ∃ n ≤ (1 + c + r), ∀ f pf, internal_step ⟨p, i::is, m⟩ f → (stack.step^[n]) ⟨[⟨p, i::is, m⟩], by simpa [stack.well_formed] using hp⟩ = ⟨[f], pf⟩ :=
 begin
   cases i;
@@ -195,6 +195,65 @@ begin
     simp [frame.setm, bank.setm_setm_self, stack.step_halt_unique hx hm'],
     simp [program.apply, stack.result, hp], },
 end
+
+theorem external_cost_of_internal_step {p: program α} {i: instruction α} {is: list (instruction α)} {m: bank α} {f: frame α}:
+  internal_step ⟨p, i::is, m⟩ f → ∃ c r, external_cost_le p i m c r :=
+begin
+  cases i;
+  try { cases i_func };
+  try { exact λ _, ⟨0, 0, by unfold external_cost_le⟩ },
+  { unfold internal_step external_cost_le program.has_result program.cost_le,
+    intro h,
+    rcases h with ⟨m', hf, n, h⟩,
+    refine ⟨n, 0, m', h⟩ },
+  { unfold internal_step external_cost_le program.has_result program.cost_le,
+    intro h,
+    rcases h with ⟨m', hf, n, h⟩,
+    refine ⟨0, n, m', h⟩ },
+end
+
+theorem internal_step_has_result {f g: frame α} {m: bank α} (hf: f.function ≠ []):
+   internal_step f g → (∃ n pf, stack.step^[n] ⟨[g], pf⟩ = stack.result m) → (∃ n pf, stack.step^[n] ⟨[f], pf⟩= stack.result m) :=
+begin
+  intros hstep hg,
+  rcases hg with ⟨n, gpf, hg⟩,
+  cases f,
+  cases f_function,
+  { contradiction },
+  cases f_current,
+  { unfold internal_step at hstep,
+    refine ⟨1, by simp [stack.well_formed], _⟩,
+    rw [function.iterate_one, stack.step_halt'', ← hg],
+    simp only [hstep, ← stack.result_def', stack.step_halt] },
+  rcases (external_cost_of_internal_step hstep) with ⟨c, r, hcost⟩,
+  rcases (step_of_internal_step (list.cons_ne_nil _ _) hcost) with ⟨n', _, hn'⟩,
+  exact ⟨n' + n, by simp[stack.well_formed], stack.step_trans n' n ( hn' _ _ hstep) hg rfl⟩,
+end
+
+theorem internal_step_has_result' {p: instruction α} {ps is is': program α} {m m' mr: bank α}:
+  internal_step ⟨p :: ps, is, m⟩ ⟨p :: ps, is', m'⟩ →
+  (∃ n, stack.step^[n] ⟨[⟨p :: ps, is', m'⟩], by simp[stack.well_formed]⟩ = stack.result mr) →
+  (∃ n, stack.step^[n] ⟨[⟨p :: ps, is, m⟩], by simp[stack.well_formed]⟩ = stack.result mr) :=
+begin
+  intros hstep h,
+  rcases h with ⟨n, h⟩,
+  rcases internal_step_has_result _ hstep ⟨n, by simp[stack.well_formed], h⟩ with ⟨n', _, h'⟩,
+  exact ⟨n', h'⟩,
+  exact list.cons_ne_nil _ _,
+end
+
+theorem internal_step_has_result'' {p: program α} {i: instruction α} {is is': program α} {m m' mr: bank α} (hp: p ≠ []):
+  internal_step ⟨p, i::is, m⟩ ⟨p, is', m'⟩ →
+  (∃ n, stack.step^[n] ⟨[⟨p, is', m'⟩], by simp[hp, stack.well_formed]⟩ = stack.result mr) →
+  (∃ n, stack.step^[n] ⟨[⟨p, i::is, m⟩], by simp[hp, stack.well_formed]⟩ = stack.result mr) :=
+begin
+  intros hstep h,
+  rcases h with ⟨n, h⟩,
+  rcases internal_step_has_result _ hstep ⟨n, by simp[hp, stack.well_formed], h⟩ with ⟨n', _, h'⟩,
+  exact ⟨n', h'⟩,
+  exact hp,
+end
+
 
 def split_cost_le: ℕ → ℕ → ℕ → frame α → Prop
 | (n+1) _ _ ⟨_, [], _⟩ := true
@@ -305,7 +364,7 @@ begin
     simp only [nat.succ_add] at hn,
     cases ih _ _ rfl h with m ih,
     { refine ⟨m, _⟩,
-      rcases step_of_interal_step _ _ hex with ⟨m', hm', h'⟩,
+      rcases step_of_internal_step _ hex with ⟨m', hm', h'⟩,
       specialize h' _ _ hin,
       { simp [stack.well_formed] },
       apply stack.step_halt_le,
@@ -616,6 +675,10 @@ def divide_and_conquer_cost (p: program α) (fc: ℕ → ℕ): ℕ → ℕ
 | 0 := internal_cost_bound p + fc 0
 | (n+1) := internal_cost_bound p + fc (n + 1) + divide_and_conquer_cost n * recurse_count p
 
+theorem divide_and_conquer_cost_def {p: program α} {fc: ℕ → ℕ} {n: ℕ}:
+  divide_and_conquer_cost p fc n = internal_cost_bound p + fc n + ite (n = 0) 0 (divide_and_conquer_cost p fc (n - 1) * recurse_count p) :=
+by cases n; simp [divide_and_conquer_cost]
+
 theorem divide_and_conquer_cost_pos (fc: ℕ → ℕ) (n: ℕ):
   1 ≤ divide_and_conquer_cost ([]:program α) fc n :=
 begin
@@ -638,30 +701,28 @@ begin
 end
 
 theorem divide_and_conquer_cost_sound {p: program α}
-  {fr: bank α → ℕ} (hfr: ∀ inp arg, recurse_arg p inp arg → fr arg < fr inp)
-  {fc: ℕ → ℕ} (hfc: ∀ inp, call_cost_le ⟨p, p, inp⟩ (fc (fr inp))):
-  ∀ inp, p.cost_le inp (divide_and_conquer_cost p fc (fr inp)) :=
+  (fr: bank α → ℕ → Prop) (hfr: ∀ inp n arg, recurse_arg p inp arg → fr inp n → ∃ m < n, fr arg m)
+  {fc: ℕ → ℕ} (hfc: ∀ inp n, fr inp n → call_cost_le ⟨p, p, inp⟩ (fc n)):
+  ∀ inp n, fr inp n → p.cost_le inp (divide_and_conquer_cost p fc n) :=
 begin
   cases p,
-  { exact λ _, program.cost_le_mono (divide_and_conquer_cost_pos _ _) ⟨_, rfl⟩ },
-  intro inp,
-  induction hn:(fr inp) using nat.strong_induction_on with n ih generalizing inp,
+  { exact λ _ _ _, program.cost_le_mono (divide_and_conquer_cost_pos _ _) ⟨_, rfl⟩ },
+  intros inp n hn,
+  induction n using nat.strong_induction_on with n ih generalizing inp,
   cases n,
   { unfold divide_and_conquer_cost,
     rw [← nat.add_zero (_ + fc 0)],
     apply cost_of_split_cost (list.cons_ne_nil _ _),
-    specialize hfc inp,
-    rw hn at hfc,
+    specialize hfc inp _ hn,
     rcases hfc with ⟨i, r, hfc⟩,
     apply recurse_cost_zero _ (internal_cost_bound_le hfc),
     { intro m,
-      specialize hfr inp m,
-      simp only [hn, nat.not_lt_zero, imp_false] at hfr,
+      specialize hfr inp 0 m,
+      simp only [hn, nat.not_lt_zero, imp_false, exists_prop, false_and, exists_false, not_true] at hfr,
       exact hfr } },
   unfold divide_and_conquer_cost,
   apply cost_of_split_cost (list.cons_ne_nil _ _),
-  rcases hfc inp with ⟨i, r, hfc⟩,
-  rw [hn] at hfc,
+  rcases hfc _ _ hn with ⟨i, r, hfc⟩,
   cases hpos:(recurse_count (p_hd::p_tl)),
   { rw [mul_zero],
     apply recurse_cost_zero,
@@ -675,15 +736,10 @@ begin
     rw [← hpos] at g,
   apply recurse_cost_bound_le _ (internal_cost_bound_le hfc),
   intros arg harg,
+  rcases hfr inp _ arg harg hn with ⟨m, hm, hfr⟩,
   apply program.cost_le_mono,
-  { apply divide_and_conquer_cost_mono g,
-    apply nat.le_of_lt_succ,
-    rw [← hn],
-    apply hfr inp arg harg },
-  apply ih,
-  rw [← hn],
-  apply hfr inp arg harg,
-  refl,
+  exact divide_and_conquer_cost_mono g (nat.le_of_lt_succ hm),
+  exact ih _ hm _ hfr,
 end
 
 -- master theorem

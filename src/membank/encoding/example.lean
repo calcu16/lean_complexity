@@ -36,9 +36,17 @@ def push_list: list ℕ → bank ℕ → bank ℕ := λ xs, push_arg (mk_list xs
 
 def test: list (frame ℕ) := ((stack.step^[1000]) ((merge_sort nat_cmp).apply (push_list [9, 3, 6, 5, 2] bank.null))).val
 
+#eval 1
+
 #eval (list.length test) -- 1
 #eval list.length (frame.current (list.ilast test)) -- 0
 #eval decode_list (frame.register (list.ilast test)) -- [2, 3, 5, 6, 9]
+
+
+def test2: (stack ℕ × ℕ) := stack.step_count ((merge_sort nat_cmp).apply (push_list [9, 3, 6, 5, 2] bank.null)) 1000
+
+#eval decode_list test2.snd
+#eval decode_list (frame.register (list.ilast test2.fst.val))
 
 end encoding
 end membank

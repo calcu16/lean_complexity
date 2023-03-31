@@ -19,6 +19,12 @@ inductive instruction (α: Type u): Type u
 @[reducible]
 def program (α: Type u) := list (instruction α)
 
+def program.has_property {α: Type u} (p: instruction α → Prop): program α → Prop
+| ((@instruction.ite α c dec branch)::tl) := p (@instruction.ite α c (λ a, @dec a) branch) ∧ program.has_property branch ∧ program.has_property tl
+| ((instruction.call func arg)::tl) := p (instruction.call func arg) ∧ program.has_property func ∧ program.has_property tl
+| (hd::tl) := p hd ∧ program.has_property tl 
+| [] := true
+
 inductive bank (α: Type u)
 | null: bank
 | mem (value: α) (memory: α → bank): bank
@@ -87,9 +93,16 @@ theorem equiv_trans [has_zero α] {a b c: bank α}: a ≈ b → b ≈ c → a �
 
 theorem equiv_getv [has_zero α] {m n: bank α}:
   m ≈ n → m.getv = n.getv := λ h, h []
+  
+theorem equiv_getv' [has_zero α] {m n: bank α} {a b: α}:
+  m ≈ n → m.getv = a → n.getv = b → a = b :=
+λ h ha hb, ha ▸ hb ▸ equiv_getv h
 
 theorem equiv_getm [has_zero α] {m n: bank α} (a: α):
   m ≈ n → m.getm a ≈ n.getm a := λ h p, h (a::p)
+
+theorem equiv_getm' [has_zero α] {m n: bank α} (a: α) {m' n': bank α}:
+  m ≈ n → m.getm a = m' → n.getm a = n' → m' ≈ n' := λ h ha hb, ha ▸ hb ▸ equiv_getm a h
 
 theorem equiv_mk [has_zero α] {m n: bank α}:
   m.getv = n.getv → (∀ a, m.getm a ≈ n.getm a) → m ≈ n :=
@@ -197,6 +210,8 @@ def item (α: Type u) := { f: frame α // f.function ≠ [] }
 def result (r: bank α): stack α := ⟨[⟨[], [], r⟩], or.inr ⟨r, rfl⟩⟩
 
 theorem result_def (r: bank α): (result r).val = [⟨[], [], r⟩] := rfl
+
+theorem result_def' (r: bank α): ∀ pf, (result r) = ⟨[⟨[], [], r⟩], pf⟩ := λ _, rfl
 
 theorem result.inj {r₀ r₁: bank α}: result r₀ = result r₁ → r₀ = r₁ :=
 by simp[result, list.singleton_inj, frame.mk.inj_eq]
@@ -384,6 +399,13 @@ def step (s: stack α) : stack α := ⟨ step_helper s.val, begin
   exact or.inr ⟨ m, h.symm ▸ rfl ⟩,
 end ⟩
 
+def step_count (s: stack α) : ℕ → (stack α × ℕ)
+| 0 := (s, 0)
+| (n+1) := match (step_count n) with
+  | ⟨⟨[⟨[], [], m⟩], pf⟩, n⟩ := ⟨⟨[⟨[], [], m⟩], pf⟩, n⟩
+  | ⟨s', n⟩ := (step s', n + 1)
+  end
+
 theorem step_cons {f f': frame α} {s: list (frame α)}:
 ∀ pf pf' pf'', step ⟨f::f'::s, pf⟩ = cons ⟨f, pf'⟩ (step ⟨(f'::s), pf''⟩) :=
 begin
@@ -522,6 +544,14 @@ end
 
 def cost_le (p: program α) (inp: bank α) (n: ℕ) :=
   ∃ outp, costed_result p inp n outp
+
+theorem costed_result_of_cost_of_result {p: program α} {inp: bank α} {n: ℕ} {outp: bank α}:
+  cost_le p inp n → has_result p inp outp → costed_result p inp n outp :=
+begin
+  intros hc hr,
+  cases hc with outp' hc,
+  rwa [has_result_unique hr ⟨_, hc⟩],
+end
 
 theorem cost_le_mono {p: program α} {inp: bank α} {n m: ℕ}:
   n ≤ m → cost_le p inp n → cost_le p inp m :=
