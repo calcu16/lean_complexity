@@ -106,30 +106,6 @@ begin
     linarith },
 end
 
-
--- def merge_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ):
---   list α → list α → trace μ
--- | [] b := ⟨ encode b, 3, [], [] ⟩
--- | (a::as) [] := ⟨ encode (a::as), 5, [], [] ⟩
--- | (a::as) (b::bs) := if (fcmp a b)
---   then ⟨ encode (list.merge fcmp (a::as) (b::bs)), 16, [(pcmp, (encode (a, b)))], [encode (as, b::bs)] ⟩
---   else ⟨ encode (list.merge fcmp (a::as) (b::bs)), 18, [(pcmp, (encode (a, b)))], [encode (a::as, bs)] ⟩
-
--- f(0) = 3
--- f(1) = 5
--- f(n) = 13 + (24 + c) * n  + 2 * f (n / 2)
--- f(2) = 83 + c * 2
--- f(4) = 287 + c * 8
--- f(8) = 791 + c * 16
-
--- f(0) = 0
--- f(1) = 0
--- f(n) = c * n  + 2 * f (n / 2)
--- f(2) = 2c
--- f(4) = 8c
--- f(8) = 24c
--- f(16) = 64c
-
 theorem list.perm_split {α: Type*} : ∀ (l : list α), l ~ l.split.fst ++ l.split.snd
 | [] := by simp
 | (a::l) :=
@@ -178,16 +154,6 @@ begin
   apply nat.div_le_div_right,
   apply nat.le_succ,
 end
-
--- | []       []        := by simp [merge]
--- | []       (b :: l') := by simp [merge]
--- | (a :: l) []        := by simp [merge]
--- | (a :: l) (b :: l') := begin
---   by_cases a ≼ b,
---   { simpa [merge, h] using perm_merge _ _ },
---   { suffices : b :: merge r (a :: l) l' ~ a :: (l ++ b :: l'), {simpa [merge, h]},
---     exact ((perm_merge _ _).cons _).trans ((swap _ _ _).trans (perm_middle.symm.cons _)) }
--- end
 
 theorem merge_sort_complexity {α: Type*} [complexity.has_encoding (runtime_model μ) α]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
