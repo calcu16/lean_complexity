@@ -235,6 +235,8 @@ begin
   { rw [hidden.getvp_setv_cons, hidden.getvp_setm_cons_ne _ _ _ _ _ h, hidden.getvp_setm_cons_ne _ _ _ _ _ h, hidden.getvp_setv_cons] }
 end
 
+theorem setm_setv (m: memory α) (v a: α) (ma: memory α): (m.setm a ma).setv v = (m.setv v).setm a ma :=
+(setv_setm _ _ _ _).symm
 theorem getm_null (a: α): (null _).getm a = null _ := rfl
 
 theorem getm_setm (m: memory α) (a: α) (ma: memory α): (m.setm a ma).getm a = ma :=
@@ -256,6 +258,25 @@ begin
   cases quotient.exists_rep ma with wma hma,
   rw [← hm, ← hma, setm_mk, getm_mk, getm_mk, hidden.getm_setm_ne],
   exact h
+end
+
+theorem getm_setm_nz (m: memory α) (a: α) (ma: memory α) [ne_zero a]: (m.setm a ma).getm 0 = m.getm 0 :=
+begin
+  cases quotient.exists_rep m with wm hm,
+  cases quotient.exists_rep ma with wma hma,
+  rw [← hm, ← hma, setm_mk, getm_mk, getm_mk, hidden.getm_setm_ne],
+  apply ne.symm,
+  rw ← ne_zero_iff,
+  apply_instance
+end
+
+theorem getm_setm_nz' (m: memory α) (a: α) (ma: memory α) [ne_zero a]: (m.setm 0 ma).getm a = m.getm a :=
+begin
+  cases quotient.exists_rep m with wm hm,
+  cases quotient.exists_rep ma with wma hma,
+  rw [← hm, ← hma, setm_mk, getm_mk, getm_mk, hidden.getm_setm_ne],
+  rw ← ne_zero_iff,
+  apply_instance
 end
 
 theorem setm_getm (m: memory α) (a: α): m.setm a (m.getm a) = m :=
@@ -289,6 +310,17 @@ begin
   rw [← hm, ← hma, ← hma', setm_mk, setm_mk, setm_mk, hidden.setm_setm_ne, setm_mk],
   exact h
 end
+
+theorem setm_setm_nz (m: memory α) (a: α) (ma ma': memory α) [ne_zero a]: (m.setm a ma).setm 0 ma' = (m.setm 0 ma').setm a ma :=
+begin
+  cases quotient.exists_rep m with wm hm,
+  cases quotient.exists_rep ma with wma hma,
+  cases quotient.exists_rep ma' with wma' hma',
+  rw [← hm, ← hma, ← hma', setm_mk, setm_mk, setm_mk, hidden.setm_setm_ne, setm_mk],
+  rw ← ne_zero_iff,
+  apply_instance
+end
+
 end -- no more need for hidden
 
 theorem getv_congr {m m': memory α} {v v': α}:

@@ -6,7 +6,6 @@ variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:�
 namespace hmem
 namespace encoding
 
-
 instance: has_equiv (memory μ) := ⟨ eq ⟩
 
 def push_arg (lhs rhs: memory μ): memory μ :=

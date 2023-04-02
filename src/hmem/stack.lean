@@ -7,6 +7,17 @@ def list.sum_le {α: Type u}: list α → (α → ℕ → Prop) → ℕ → Prop
 | [] _ _ := true
 | (a::as) p n := ∃ m m', p a m ∧ as.sum_le p m' ∧ n = m + m'
 
+theorem list.sum_le_nil {α: Type u} {p: α → ℕ → Prop}:
+  list.sum_le [] p 0 :=
+begin
+  trivial
+end
+
+theorem list.sum_le_cons {α: Type u} {hd: α} {tl: list α} {p: α → ℕ → Prop} {m m': ℕ}:
+  p hd m →
+  tl.sum_le p m' →
+  list.sum_le (hd::tl) p (m + m') := λ h_hd h_tl, ⟨m, m', h_hd, h_tl, rfl⟩ 
+
 theorem list.cons_append_tail {α: Type u} (x: α) (xs: list α):
   ∃ ys y, x::xs = ys ++ [y] :=
 begin

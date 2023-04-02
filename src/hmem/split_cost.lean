@@ -109,7 +109,6 @@ end
 theorem step_over_irrefl (t: thunk α):
   ¬ step_over t t := λ h, lt_irrefl _ (step_over_decreasing h)
   
-
 def external_time_cost_step (t: thunk α) (c r: ℕ): Prop :=
   match t.step with
   | (sum.inl _) := true
@@ -196,6 +195,17 @@ end
 
 theorem not_split_time_cost_zero (t: thunk α) (c r: ℕ):
   ¬ split_time_cost t 0 c r := by cases t; cases t_current; exact not_false
+
+
+theorem split_time_cost_one (t: thunk α) (c r: ℕ):
+  split_time_cost t 1 c r → t.current = [] :=
+begin
+  intro h,
+  cases h,
+  { assumption },
+  rcases h with ⟨_, _, _, _, _, _, _, hso, _⟩,
+  exact absurd hso (not_split_time_cost_zero _ _ _),
+end
 
 theorem iterate_step_of_step_over {t r: thunk α}:
   t.step_over r → ∃ n, (stack.step)^[n] (stack.execution t []) = stack.execution r [] :=
@@ -644,6 +654,48 @@ def max_recurse_count: program α → ℕ
 | (i::is) := max_recurse_count is
 | [] := 0
 
+def has_call: program α → Prop
+| ((instruction.call _ _):: is) := true
+| ((@instruction.ite _ _ _ is')::is) := has_call is ∨ has_call is'
+| (i::is) := has_call is
+| [] := false
+
+theorem has_call_of_step {t: thunk α} {p: program α} {m: memory α} {t': thunk α}:
+  t.step = sum.inr (sum.inr (option.some p, m, t')) → t.current.has_call :=
+begin
+  cases t,
+  cases t_current,
+  { simp only [thunk.step, false_implies_iff] },
+  cases t_current_hd;
+  try { { simp only [thunk.step, false_implies_iff] } },
+  simp only [has_call, implies_true_iff],
+  simp only [thunk.step, prod.mk.inj_iff, false_and, false_implies_iff],
+end
+
+theorem has_call_of_step_over {t: thunk α} {t': thunk α}:
+  t.step_over t' → t'.current.has_call → t.current.has_call :=
+begin
+  cases t,
+  cases t_current,
+  { simp only [thunk.step_over, thunk.step, false_implies_iff] },
+  cases t_current_hd;
+  try { { simp only [thunk.step_over, thunk.step, has_call],
+    intro h,
+    rw [← h],
+    simpa only [has_call] using id } },
+  { simp only [thunk.step_over, thunk.step, has_call],
+    intro h,
+    rw [← h],
+    split_ifs,
+    exact or.inr,
+    exact or.inl },
+  { simp only [has_call, implies_true_iff] },
+  { simp only [thunk.step_over, thunk.step, has_call, and_imp],
+    intros _ h,
+    rw [h],
+    simp [thunk.set_result, has_call] }
+end
+
 theorem max_recurse_count_step_inl {t t': thunk α}:
   t.step = sum.inl t' →  t'.current.max_recurse_count ≤ t.current.max_recurse_count :=
 begin
@@ -812,6 +864,36 @@ begin
   rcases halt with ⟨n, m, h⟩,
   rcases thunk.split_cost_of_time_cost h with ⟨i, c, r, hn, h⟩,
   exact ⟨i, c, max_recurse_helper_zero h hrec⟩,
+end
+
+theorem call_cost_zero_help {t: thunk α} {i c r: ℕ}:
+  t.split_time_cost i c r → ¬ t.current.has_call → t.split_time_cost i 0 r :=
+begin
+  intros h hcall,
+  induction i generalizing t c r,
+  { simpa only [thunk.split_time_cost] using h },
+  cases h,
+  { exact or.inl h },
+  rcases h with ⟨t', c₀, c₁, r₀, r₁, hex, hso, hsplit, hc, hr⟩,
+  refine or.inr ⟨t', 0, 0, r₀, r₁, _, hso, i_ih hsplit _, (nat.add_zero _).symm, hr⟩,
+  { cases hstep:t.step,
+    { simp only [thunk.external_time_cost_step, hstep] },
+    cases val,
+    { simpa only [thunk.step_over, hstep] using hso },
+    rcases val with ⟨_|_,_,_⟩,
+    { simpa only [thunk.external_time_cost_step, hstep] using hex },
+    { exact absurd (has_call_of_step hstep) hcall } },
+  { contrapose! hcall,
+    exact has_call_of_step_over hso hcall }
+end
+
+theorem call_cost_zero {p: program α} {inp: memory α}:
+  p.halts_on inp → ¬ p.has_call → p.call_cost inp 0 :=
+begin
+  intros halt hcall,
+  rcases halt with ⟨n, m, h⟩,
+  rcases thunk.split_cost_of_time_cost h with ⟨i, c, r, hn, h⟩,
+  exact ⟨i, r, call_cost_zero_help h hcall⟩
 end
 
 end program
