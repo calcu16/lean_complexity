@@ -54,7 +54,7 @@ namespace hmem
 
 def program.max_internal_cost: program α → ℕ
 | [] := 1
-| ((@instruction.ite _ _ _ is')::is) := max (program.max_internal_cost is) (program.max_internal_cost is') + 1
+| ((@instruction.ite _ _ _ _ _ is')::is) := max (program.max_internal_cost is) (program.max_internal_cost is') + 1
 | (i::is) := program.max_internal_cost is + 1
 
 
@@ -65,8 +65,8 @@ def step_over (t r: thunk α): Prop :=
   | (sum.inl t') := t' = r
   | (sum.inr (sum.inl m)) := false
   | (sum.inr (sum.inr (p, m, t'))) :=
-    (p.get_or_else t.function).has_result m (r.state.getm 0)
-    ∧ r = t'.set_result (r.state.getm 0) 
+    (p.get_or_else t.function).has_result m (r.state.getmp t'.snd)
+    ∧ r = thunk.set_result t' (r.state.getmp t'.snd) 
   end
 
 theorem step_over_unique {t r r': thunk α}:
@@ -101,7 +101,7 @@ begin
     intro hr,
     simp only [← hr],
     apply lt_of_le_of_lt _ (nat.lt_succ_self _),
-    by_cases t_current_hd_cond t_state.getv,
+    by_cases t_current_hd_cond (vector.map t_state.getvs t_current_hd_src),
     { simp only [h, if_true, le_max_right] },
     { simp only [h, if_false, le_max_left] } },
 end
@@ -218,7 +218,7 @@ begin
   cases val,
   { simp only [thunk.step_over, hstep],
     trivial },
-  rcases val with ⟨_, _, _⟩,
+  rcases val with ⟨_, _, _, _⟩,
   simp only [thunk.step_over, hstep, and_imp],
   intros hres hr,
   cases hres with n hres,
@@ -226,7 +226,7 @@ begin
   use m + 1,
   rw [list.nil_append] at hres,
   simp only [function.iterate_succ_apply, stack.step, program.call, hstep],
-  rw [hres, ← hr]
+  rw [hres, ← hr],
 end
 
 theorem iterate_step_of_iterate_step_over {t: thunk α} {n: ℕ} {r: thunk α}:
@@ -310,6 +310,7 @@ begin
     intros hres ht hcost,
     cases hcost with m hcost,
     rcases stack.step_iterate_return' hcost val_snd_snd with ⟨r', hr', hcost'⟩,
+    cases val_snd_snd,
     refine ⟨r', by linarith, _⟩,
     simp only [function.iterate_succ_apply, option.get_or_else_none, option.get_or_else_some, program.call, stack.step, hstep, hcost', eq_self_iff_true, and_true],
     rw [ht],
@@ -370,10 +371,12 @@ begin
     cases ih _ _ h with y hy,
     { refine ⟨y + 1, _, _, hy⟩,
       cases c',
+      cases c'_fst,
       simp only [step_over, hstep, program.has_result,
-        thunk.set_result, memory.getm_setm,
+        thunk.set_result_set_result', thunk.set_result, memory.getm_setm,
+        memory.getmp_setmp,
         eq_self_iff_true, and_true],
-      exact ⟨_, h₁⟩ },
+      exact ⟨_, h₁⟩},
     apply nat.lt_succ_of_le,
     rw [hx, add_comm],
     exact le_self_add },
@@ -496,29 +499,29 @@ begin
   exact ⟨_ + _, by rw[function.iterate_add_apply, h, h'] ⟩,
 end
 
-theorem apply_step_over_call {p: program α} {s: source α} {func is: program α} {m m' r: memory α}:
+theorem apply_step_over_call {p: program α} {d s: source α} {func is: program α} {m m' r: memory α}:
   func.has_result (m.getms s) m' →
-  (∃ n, (stack.step^[n]) (stack.execution ⟨p, is, m.setm 0 m'⟩ []) = stack.result r) →
-  (∃ n, (stack.step^[n]) (stack.execution ⟨p, (instruction.call func s)::is, m⟩ []) = stack.result r) :=
+  (∃ n, (stack.step^[n]) (stack.execution ⟨p, is, m.setmp (d.get m) m'⟩ []) = stack.result r) →
+  (∃ n, (stack.step^[n]) (stack.execution ⟨p, (instruction.call func d s)::is, m⟩ []) = stack.result r) :=
 begin
   intro h,
   apply apply_step_over,
   simp only [thunk.step_over, thunk.step, set_result, 
     option.get_or_else, option.map_some',
-    memory.getm_setm, memory.setm_setm, h,
+    memory.getmp_setmp, h,
     true_and, eq_self_iff_true],
 end
 
-theorem apply_step_over_recurse {p: program α} {s: source α} {is: program α} {m m' r: memory α}:
+theorem apply_step_over_recurse {p: program α} {d s: source α} {is: program α} {m m' r: memory α}:
   p.has_result (m.getms s) m' →
-  (∃ n, (stack.step^[n]) (stack.execution ⟨p, is, m.setm 0 m'⟩ []) = stack.result r) →
-  (∃ n, (stack.step^[n]) (stack.execution ⟨p, (instruction.recurse s)::is, m⟩ []) = stack.result r) :=
+  (∃ n, (stack.step^[n]) (stack.execution ⟨p, is, m.setmp (d.get m) m'⟩ []) = stack.result r) →
+  (∃ n, (stack.step^[n]) (stack.execution ⟨p, (instruction.recurse d s)::is, m⟩ []) = stack.result r) :=
 begin
   intro h,
   apply apply_step_over,
   simp only [thunk.step_over, thunk.step, set_result, 
     option.get_or_else, option.map_none',
-    memory.getm_setm, memory.setm_setm, h,
+    memory.getmp_setmp, h,
     true_and, eq_self_iff_true],
 end
 
@@ -576,7 +579,7 @@ begin
     rw [h],
     simpa only [program.max_internal_cost] using nat.lt_succ_self _ },
   simp only [thunk.step_over, thunk.step],
-  by_cases (t_current_hd_cond t_state.getv);
+  by_cases (t_current_hd_cond (vector.map t_state.getvs t_current_hd_src));
   simp only [h, if_true];
   intro h;
   rw [← h],
@@ -649,18 +652,18 @@ def recurse_arg (p: program α) (inp arg: memory α): Prop :=
   ∃ n t t', (thunk.step_over^~[n] (p.call inp) t) ∧ t.step = sum.inr (sum.inr (option.none, arg, t'))
 
 def max_recurse_count: program α → ℕ
-| ((instruction.recurse _)::is) := max_recurse_count is + 1
-| ((@instruction.ite _ _ _ is')::is) := max (max_recurse_count is) (max_recurse_count is')
+| ((instruction.recurse _ _)::is) := max_recurse_count is + 1
+| ((@instruction.ite _ _ _ _ _ is')::is) := max (max_recurse_count is) (max_recurse_count is')
 | (i::is) := max_recurse_count is
 | [] := 0
 
 def has_call: program α → Prop
-| ((instruction.call _ _):: is) := true
-| ((@instruction.ite _ _ _ is')::is) := has_call is ∨ has_call is'
+| ((instruction.call _ _ _):: is) := true
+| ((@instruction.ite _ _ _ _ _ is')::is) := has_call is ∨ has_call is'
 | (i::is) := has_call is
 | [] := false
 
-theorem has_call_of_step {t: thunk α} {p: program α} {m: memory α} {t': thunk α}:
+theorem has_call_of_step {t: thunk α} {p: program α} {m: memory α} {t': thunk α × list α}:
   t.step = sum.inr (sum.inr (option.some p, m, t')) → t.current.has_call :=
 begin
   cases t,
@@ -708,14 +711,14 @@ begin
     simp only [← h, max_recurse_count] } };
   try { { simp only [thunk.step, false_implies_iff] } },
   simp only [thunk.step],
-  by_cases is_hd_cond inp.getv;
+  by_cases is_hd_cond (vector.map inp.getvs is_hd_src);
   { simp only [h, if_true, if_false],
     intro ht,
     simp only [← ht, max_recurse_count, le_max_right, le_max_left] }
 end
 
-theorem max_recurse_count_step_inr_inr_none {t: thunk α} {m: memory α} {t': thunk α}:
-  t.step = sum.inr (sum.inr (none, m, t')) →  t.current.max_recurse_count = t'.current.max_recurse_count + 1 :=
+theorem max_recurse_count_step_inr_inr_none {t: thunk α} {m: memory α} {t': thunk α × list α}:
+  t.step = sum.inr (sum.inr (none, m, t')) →  t.current.max_recurse_count = t'.fst.current.max_recurse_count + 1 :=
 begin
   rcases t with ⟨p, is, inp⟩,
   cases is,
@@ -727,8 +730,8 @@ begin
   rw [← h]
 end
 
-theorem max_recurse_count_step_inr_inr_some {t: thunk α} {p: program α} {m: memory α} {t': thunk α}:
-  t.step = sum.inr (sum.inr (some p, m, t')) →  t.current.max_recurse_count = t'.current.max_recurse_count :=
+theorem max_recurse_count_step_inr_inr_some {t: thunk α} {p: program α} {m: memory α} {t': thunk α × list α}:
+  t.step = sum.inr (sum.inr (some p, m, t')) →  t.current.max_recurse_count = t'.fst.current.max_recurse_count :=
 begin
   rcases t with ⟨p, is, inp⟩,
   cases is,

@@ -60,7 +60,7 @@ begin
   refl,
 end
 
-theorem thunk.extend_trace_calls_cons {t: thunk α} {tr: trace α} {p: program α} {t': thunk α} {m: memory α}:
+theorem thunk.extend_trace_calls_cons {t: thunk α} {tr: trace α} {p: program α} {t': thunk α × list α} {m: memory α}:
   t.step = sum.inr (sum.inr (some p, m, t')) → (t.extend_trace tr).calls = (p, m)::tr.calls :=
 begin
   cases tr,
@@ -76,7 +76,7 @@ begin
   { simp only [thunk.extend_trace, hstep, eq_self_iff_true, imp_true_iff] },
   cases val,
   { simp only [thunk.extend_trace, hstep, eq_self_iff_true, imp_true_iff] },
-  rcases val with ⟨_|_,_,_⟩,
+  rcases val with ⟨_|_,_,_,_⟩,
   { simp only [thunk.extend_trace, hstep, eq_self_iff_true, imp_true_iff] },
   contrapose!,
   simp,
@@ -98,7 +98,7 @@ begin
   simp [hstep]
 end
 
-theorem thunk.extend_trace_calls_eq₂ {t: thunk α} {tr: trace α} {m: memory α} {t': thunk α}:
+theorem thunk.extend_trace_calls_eq₂ {t: thunk α} {tr: trace α} {m: memory α} {t': thunk α × list α}:
   t.step = sum.inr (sum.inr (none, m, t')) → (t.extend_trace tr).calls = tr.calls :=
 begin
   intro hstep,
@@ -106,7 +106,7 @@ begin
   simp [hstep]
 end
 
-theorem thunk.extend_trace_recurses_cons {t: thunk α} {tr: trace α} {t': thunk α} {m: memory α}:
+theorem thunk.extend_trace_recurses_cons {t: thunk α} {tr: trace α} {t': thunk α × list α} {m: memory α}:
   t.step = sum.inr (sum.inr (none, m, t')) → (t.extend_trace tr).recurses = m::tr.recurses :=
 begin
   cases tr,
@@ -122,7 +122,7 @@ begin
   { simp only [thunk.extend_trace, hstep, eq_self_iff_true, imp_true_iff] },
   cases val,
   { simp only [thunk.extend_trace, hstep, eq_self_iff_true, imp_true_iff] },
-  rcases val with ⟨_|_,_,_⟩,
+  rcases val with ⟨_|_,_,_,_⟩,
   {contrapose!, simp },
   { simp only [thunk.extend_trace, hstep, eq_self_iff_true, imp_true_iff] },
 end
@@ -143,7 +143,7 @@ begin
   simp [hstep]
 end
 
-theorem thunk.extend_trace_recurses_eq₂ {t: thunk α} {tr: trace α} {p: program α} {m: memory α} {t': thunk α}:
+theorem thunk.extend_trace_recurses_eq₂ {t: thunk α} {tr: trace α} {p: program α} {m: memory α} {t': thunk α × list α}:
   t.step = sum.inr (sum.inr (some p, m, t')) → (t.extend_trace tr).recurses = tr.recurses :=
 begin
   intro hstep,
@@ -298,38 +298,33 @@ theorem step_trace {t t': thunk α} {tr tr': trace α}:
 λ hso hex htr, hex ▸ thunk.has_trace.step hso htr
 
 
--- theorem apply_step_over_recurse {p: program α} {s: source α} {is: program α} {m m' r: memory α}:
---   p.has_result (m.getms s) m' →
---   (∃ n, (stack.step^[n]) (stack.execution ⟨p, is, m.setm 0 m'⟩ []) = stack.result r) →
---   (∃ n, (stack.step^[n]) (stack.execution ⟨p, (instruction.recurse s)::is, m⟩ []) = stack.result r) :=
-
-theorem call_trace {pc: program α} {s: source α} {p is: program α} {m m' mr r: memory α} {n: ℕ} {cs: list (program α × memory α)} {rs: list (memory α)}:
+theorem call_trace {pc: program α} {d s: source α} {p is: program α} {m m' mr r: memory α} {n: ℕ} {cs: list (program α × memory α)} {rs: list (memory α)}:
   m.getms s = m' →
   pc.has_result m' mr →
-  thunk.has_trace ⟨p, is, m.setm 0 mr⟩ ⟨r, n, cs, rs⟩ →
-  thunk.has_trace ⟨p, (instruction.call pc s)::is, m⟩ ⟨r, n+1, (pc,m')::cs, rs⟩ :=
+  thunk.has_trace ⟨p, is, m.setmp (d.get m) mr⟩ ⟨r, n, cs, rs⟩ →
+  thunk.has_trace ⟨p, (instruction.call pc d s)::is, m⟩ ⟨r, n+1, (pc,m')::cs, rs⟩ :=
 begin
   intros hm hres htr,
   apply step_trace _ _ htr,
   { simpa only [thunk.step_over, thunk.step,
       option.get_or_else, option.map_none',
-      hm, memory.getm_setm, memory.setm_setm, thunk.set_result,
+      hm, memory.getmp_setmp, thunk.set_result,
       eq_self_iff_true, and_true] using hres },
   { unfold thunk.extend_trace thunk.step,
     rw [hm] }
 end
 
-theorem recurse_trace {p: program α} {s: source α} {is: program α} {m m' mr r: memory α} {n: ℕ} {cs: list (program α × memory α)} {rs: list (memory α)}:
+theorem recurse_trace {p: program α} {d s: source α} {is: program α} {m m' mr r: memory α} {n: ℕ} {cs: list (program α × memory α)} {rs: list (memory α)}:
   m.getms s = m' →
   p.has_result m' mr →
-  thunk.has_trace ⟨p, is, m.setm 0 mr⟩ ⟨r, n, cs, rs⟩ →
-  thunk.has_trace ⟨p, (instruction.recurse s)::is, m⟩ ⟨r, n+1, cs, m'::rs⟩ :=
+  thunk.has_trace ⟨p, is, m.setmp (d.get m) mr⟩ ⟨r, n, cs, rs⟩ →
+  thunk.has_trace ⟨p, (instruction.recurse d s)::is, m⟩ ⟨r, n+1, cs, m'::rs⟩ :=
 begin
   intros hm hres htr,
   apply step_trace _ _ htr,
   { simpa only [thunk.step_over, thunk.step,
       option.get_or_else, option.map_none',
-      hm, memory.getm_setm, memory.setm_setm, thunk.set_result,
+      hm, memory.getmp_setmp, thunk.set_result,
       eq_self_iff_true, and_true] using hres },
   { unfold thunk.extend_trace thunk.step,
     rw [hm] }

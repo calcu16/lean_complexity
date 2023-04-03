@@ -387,6 +387,20 @@ begin
   { refl },
   rw [setmp_cons, getmp_cons, as_ih, setm_getm],
 end
+theorem getmp_setmp (m: memory α) (as: list α) (ma: memory α): (m.setmp as ma).getmp as = ma :=
+begin
+  induction as generalizing m,
+  { refl },
+  rw [setmp_cons, getmp_cons, getm_setm, as_ih],
+end
+
+theorem setmp_setmp (m: memory α) (as: list α) (ma ma': memory α):
+  (m.setmp as ma).setmp as ma' = m.setmp as ma' :=
+begin
+  induction as generalizing m,
+  { rw [setmp_nil, setmp_nil] },
+  { simp only [setmp_cons, setmp_nil, getm_setm, setm_setm, as_ih] }
+end
 
 def getvp (m: memory α) (as: list α): α := getv (getmp m as)
 
