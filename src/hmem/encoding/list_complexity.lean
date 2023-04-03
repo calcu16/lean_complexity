@@ -33,7 +33,7 @@ theorem merge_complexity {α: Type*} [complexity.has_encoding (runtime_model μ)
   {c: ℕ}
   {as bs: list α}
   (hcost: ∀ a b, a ∈ as → b ∈ bs → pcmp.has_time_cost (encode (a, b)) c):
-  (merge pcmp).has_time_cost (encode (as, bs)) ((19 + c) * (as.length + bs.length) + 4) :=
+  (merge pcmp).has_time_cost (encode (as, bs)) ((10 + c) * (as.length + bs.length) + 3) :=
 begin
   induction h:(as.length + bs.length) using nat.strong_induction_on with n ih generalizing as bs,
   cases as with a as,
@@ -160,7 +160,7 @@ theorem merge_sort_complexity {α: Type*} [complexity.has_encoding (runtime_mode
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (encode (a, b)) (encode (dcmp a b)))
   {c: ℕ} {l: list α}
   (hcost: ∀ a b, a ∈ l → b ∈ l → pcmp.has_time_cost (encode (a, b)) c):
-  (merge_sort pcmp).has_time_cost (encode l) ((37 + c) * l.length * (nat.clog 2 l.length) + 5) :=
+  (merge_sort pcmp).has_time_cost (encode l) ((22 + c) * l.length * (nat.clog 2 l.length) + 2) :=
 begin
   induction h:l.length using nat.strong_induction_on with n ih generalizing l,
   cases hsplit:l.split with l₀ l₁,
@@ -277,7 +277,7 @@ begin
       end,
       show ∀ n: ℕ, n + 2 - 1 = n + 1,
       by simp only [← nat.succ_eq_add_one, ← nat.pred_eq_sub_one, nat.pred_succ, eq_self_iff_true, forall_true_iff]],
-    rw [← @nat.add_le_add_iff_right (13 * n)],
+    rw [← @nat.add_le_add_iff_right (7 * n)],
     ring_nf,
     rw [← nat.mul_succ, nat.succ_eq_add_one,
       show n + 1 = n + 2 - 1,

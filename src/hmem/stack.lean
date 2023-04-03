@@ -66,15 +66,16 @@ inductive instruction (α: Type u)
 | vop {n: ℕ} (op: vector α n → α) (dst: source α) (src: vector (source α) n): instruction
 | mop (op: hmem.instruction.memory_operation) (dst src: source α): instruction
 | clear (dst: source α): instruction
-| ite (cond: α → Prop) [Π {a}, decidable (cond a)] (branch: list instruction): instruction
-| call (func: list instruction) (arg: source α): instruction
-| recurse (arg: source α): instruction
+| ite {n: ℕ} (cond: vector α n → Prop) [Π {v}, decidable (cond v)] (src: vector (source α) n) (branch: list instruction): instruction
+| call (func: list instruction) (dst src: source α): instruction
+| recurse (dst src: source α): instruction
 
 namespace instruction
 
 def const (dst: source α) (v: α): instruction α := vop (λ _, v) dst (vector.nil)
 def uop (op: α → α) (dst src: source α): instruction α := vop (λ s: vector α 1, op (s.nth ⟨0, zero_lt_one⟩)) dst (vector.cons src vector.nil)
 def bop (op: α → α → α) (dst lhs rhs: source α): instruction α := vop (λ s: vector α 2, op (s.nth ⟨0, zero_lt_two⟩) (s.nth ⟨1, one_lt_two⟩)) dst (vector.cons lhs (vector.cons rhs vector.nil))
+def ifz (src: source α): list (instruction α) → instruction α := ite (λ s: vector α 1, (s.nth ⟨0, zero_lt_one⟩) = 0) (vector.cons src vector.nil)
 
 @[pattern]
 def copy: source α → source α → instruction α := instruction.mop instruction.memory_operation.COPY
@@ -101,7 +102,7 @@ theorem program.call_function (p: program α) (m: memory α): (p.call m).functio
 
 inductive stack (α: Type u) [has_zero α] [decidable_eq α]
 | result (value: memory α): stack
-| execution (top: thunk α) (callers: list (thunk α)): stack
+| execution (top: thunk α) (callers: list (thunk α × list α)): stack
 
 def memory.mop: memory α → instruction.memory_operation → source α → source α → memory α
 | m instruction.memory_operation.COPY dst _ := m.getms dst
@@ -110,35 +111,56 @@ def memory.mop: memory α → instruction.memory_operation → source α → sou
 
 namespace thunk
 
-def set_result: thunk α → memory α → thunk α
-| ⟨p, is, m⟩ m' := ⟨p, is, m.setm 0 m'⟩
+def set_result: (thunk α × list α) → memory α → thunk α
+| (⟨p, is, m⟩, as) m' := ⟨p, is, m.setmp as m'⟩
 
-theorem set_result_function {t : thunk α} {m: memory α} {t': thunk α}:
-  t.set_result m = t' → t.function = t'.function :=
+def set_result': (thunk α × list α) → memory α → (thunk α × list α)
+| (t, as) m := (thunk.set_result (t, as) m, as)
+
+theorem set_result_function {t : thunk α × list α} {m: memory α} {t': thunk α}:
+  thunk.set_result t m = t' → t.fst.function = t'.function :=
 begin
   intro h,
   rw [← h],
   cases t,
+  cases t_fst,
   refl,
 end
 
-theorem set_result_current {t : thunk α} {m: memory α} {t': thunk α}:
-  t.set_result m = t' → t.current = t'.current :=
+theorem set_result_function' {t : thunk α × list α} {m: memory α}:
+  (thunk.set_result t m).function = t.fst.function :=
+begin
+  cases t,
+  cases t_fst,
+  refl,
+end
+
+theorem set_result_current {t : thunk α × list α} {m: memory α} {t': thunk α}:
+  thunk.set_result t m = t' → t.fst.current = t'.current :=
 begin
   intro h,
   rw [← h],
   cases t,
+  cases t_fst,
   refl,
 end
 
-def step: thunk α → (thunk α ⊕ memory α ⊕ (option (program α) × memory α × thunk α))
+theorem set_result_set_result' {t : thunk α × list α} {m m': memory α}:
+  set_result (set_result' t m) m' = set_result t m' :=
+begin
+  cases t,
+  cases t_fst,
+  simp only [set_result, set_result', memory.setmp_setmp, eq_self_iff_true, and_true]
+end
+
+def step: thunk α → (thunk α ⊕ memory α ⊕ (option (program α) × memory α × thunk α × list α))
 | ⟨_, [], m⟩ := sum.inr (sum.inl m)
 | ⟨p, (instruction.vop op dst src)::is, m⟩ := sum.inl ⟨p, is, m.setvs dst (op (src.map (λ s, m.getvs s)))⟩
 | ⟨p, (instruction.mop op dst src)::is, m⟩ := sum.inl ⟨p, is, (m.setms src (m.mop op src dst)).setms dst (m.getms src)⟩
 | ⟨p, (instruction.clear dst)::is, m⟩ := sum.inl ⟨p, is, m.setms dst (memory.null _)⟩
-| ⟨p, (@instruction.ite _ cond dcond branch)::is, m⟩ := sum.inl ⟨p, @ite _ (cond m.getv) (@dcond _) branch is, m⟩
-| ⟨p, (instruction.call func src)::is, m⟩ := sum.inr (sum.inr (some func, m.getms src, ⟨p, is, m.setm 0 (memory.null _)⟩))
-| ⟨p, (instruction.recurse src)::is, m⟩ := sum.inr (sum.inr (none, m.getms src, ⟨p, is, m.setm 0 (memory.null _)⟩))
+| ⟨p, (@instruction.ite _ _ cond dcond src branch)::is, m⟩ := sum.inl ⟨p, @ite _ (cond (src.map (λ s, m.getvs s))) (@dcond _) branch is, m⟩
+| ⟨p, (instruction.call func dst src)::is, m⟩ := sum.inr (sum.inr (some func, m.getms src, ⟨p, is, m⟩, dst.get m))
+| ⟨p, (instruction.recurse dst src)::is, m⟩ := sum.inr (sum.inr (none, m.getms src,  ⟨p, is, m⟩, dst.get m))
 
 theorem step_nil_iff (t: thunk α):
   t.current = [] ↔ ∃ m, t.step = sum.inr (sum.inl m) :=
@@ -167,14 +189,14 @@ begin
   rw [← h]
 end
 
-theorem step_function₂ {t: thunk α} {p: option (program α)} {m: memory α} {t': thunk α}:
-  t.step = sum.inr (sum.inr (p, m, t')) → t.function = t'.function :=
+theorem step_function₂ {t: thunk α} {p: option (program α)} {m: memory α} {as: list α} {t': thunk α}:
+  t.step = sum.inr (sum.inr (p, m, t', as)) → t.function = t'.function :=
 begin
   cases t,
   cases t_current;
   try { cases t_current_hd };
   simp only [step, false_implies_iff, prod.mk.inj_iff, and_imp];
-  intros _ _ h;
+  intros _ _ h _;
   rw [← h]
 end
 
@@ -186,14 +208,14 @@ def step: stack α → stack α
   | (sum.inl f') := execution f' caller
   | (sum.inr (sum.inl v)) := match caller with
     | [] := result v
-    | (c::cs) := execution (c.set_result v) cs
+    | (c::cs) := execution (thunk.set_result c v) cs
     end
-  | (sum.inr (sum.inr (p, m, f'))) := execution ((p.get_or_else f.function).call m) (f'::caller)
+  | (sum.inr (sum.inr (p, m, ret))) := execution ((p.get_or_else f.function).call m) ((thunk.set_result' ret (memory.null _))::caller)
   end
 | r := r
 
-theorem step_function {c : thunk α} {cs: list (thunk α)} {c': thunk α} {cs': list (thunk α)}:
-  (execution c cs).step = (execution c' cs') → (list.last (c::cs) (list.cons_ne_nil _ _)).function = (list.last (c'::cs') (list.cons_ne_nil _ _)).function :=
+theorem step_function {c : thunk α} {cs: list (thunk α × list α)} {c': thunk α} {cs': list (thunk α × list α)}:
+  (execution c cs).step = (execution c' cs') → (list.last ((c, [])::cs) (list.cons_ne_nil _ _)).fst.function = (list.last ((c', [])::cs') (list.cons_ne_nil _ _)).fst.function :=
 begin
   cases hstep:c.step,
   { simp only [step, hstep, and_imp],
@@ -213,12 +235,13 @@ begin
       exact thunk.set_result_function hc },
     intros hc hcs,
     rw [← hcs, list.last_cons_cons, list.last_cons_cons, list.last_cons_cons] },
-  rcases val with ⟨_, _, _⟩,
+  rcases val with ⟨_, _, _, _⟩,
   simp only [step, hstep, and_imp],
   cases cs,
   { intros hc hcs,
     rw [← hcs, list.last_cons_cons, list.last_singleton, list.last_singleton],
-    exact thunk.step_function₂ hstep },
+    unfold thunk.set_result',
+    rw [thunk.step_function₂ hstep, thunk.set_result_function'] },
   intros hc hcs,
   rw [← hcs, list.last_cons_cons, list.last_cons_cons, list.last_cons_cons]
 end
@@ -241,8 +264,8 @@ begin
   simp only [hx, add_comm n x, function.iterate_add_apply, h, result_halt, result.inj_eq, exists_eq'],
 end
 
-theorem nstep_function {c : thunk α} {cs: list (thunk α)} {n: ℕ} {c': thunk α} {cs': list (thunk α)}:
-  step^[n] (execution c cs) = (execution c' cs') → (list.last (c::cs) (list.cons_ne_nil _ _)).function = (list.last (c'::cs') (list.cons_ne_nil _ _)).function :=
+theorem nstep_function {c : thunk α} {cs: list (thunk α × list α)} {n: ℕ} {c': thunk α} {cs': list (thunk α × list α)}:
+  step^[n] (execution c cs) = (execution c' cs') → (list.last ((c, [])::cs) (list.cons_ne_nil _ _)).fst.function = (list.last ((c', [])::cs') (list.cons_ne_nil _ _)).fst.function :=
 begin
   induction n generalizing c cs,
   { rw [function.iterate_zero_apply, execution.inj_eq, and_imp],
@@ -257,7 +280,7 @@ end
 theorem nstep_function' {c : thunk α} {n: ℕ} {c': thunk α}:
   step^[n] (execution c []) = (execution c' []) → c.function = c'.function := nstep_function
 
-theorem step_result_iff {t: thunk α} {cs: list (thunk α)} {m: memory α}:
+theorem step_result_iff {t: thunk α} {cs: list (thunk α × list α)} {m: memory α}:
   step (execution t cs) = result m ↔ cs = [] ∧ ∃ p, t = ⟨p, [], m⟩ :=
 begin
   split,
@@ -279,7 +302,7 @@ begin
   refl
 end
 
-def result_prev {c: thunk α} {cs: list (thunk α)} {m: memory α}:
+def result_prev {c: thunk α} {cs: list (thunk α × list α)} {m: memory α}:
   (execution c cs).step = result m ↔
   c = ⟨ c.function, [], m ⟩ ∧ cs = [] :=
 begin
@@ -290,7 +313,7 @@ begin
   simp only [step, thunk.step, eq_self_iff_true, and_true, true_and, iff_self, and_false, false_and],
 end
 
-def result_nprev {c: thunk α} {cs: list (thunk α)} {n: ℕ} {m: memory α}:
+def result_nprev {c: thunk α} {cs: list (thunk α × list α)} {n: ℕ} {m: memory α}:
   step^[n] (execution c cs) = result m ↔
   ∃ t (n' < n), step^[n'] (execution c cs) = execution ⟨t, [], m⟩ [] :=
 begin
@@ -330,16 +353,21 @@ begin
     exact ⟨_, n', hn, h⟩ }
 end
 
-theorem step_return {t: thunk α} {cs: list (thunk α)} {m: memory α}:
-  step (execution t cs) = result m → ∀ c css, step (execution t (cs ++ (c::css))) = execution (c.set_result m) css :=
+theorem step_return {t: thunk α} {cs: list (thunk α × list α)} {m: memory α}:
+  step (execution t cs) = result m → ∀ c css, step (execution t (cs ++ ((thunk.set_result' c (memory.null _))::css))) = execution (thunk.set_result c m) css :=
 begin
   rw [step_result_iff, and_imp, exists_imp_distrib],
   intros hcs _ ht _ _,
   rw [hcs, ht],
-  refl,
+  cases c,
+  cases c_fst,
+  unfold stack.step thunk.step,
+  rw [list.nil_append],
+  unfold stack.step,
+  rw [thunk.set_result_set_result'],
 end
 
-theorem step_append {t: thunk α} {t': thunk α} {cs cs': list (thunk α)} :
+theorem step_append {t: thunk α} {t': thunk α} {cs cs': list (thunk α × list α)} :
   step (execution t cs) = (execution t' cs') → ∀ css, step (execution t (cs ++ css)) = (execution t' (cs' ++ css)) :=
 begin
   cases t,
@@ -360,7 +388,7 @@ begin
   try { rw [list.cons_append] },
 end
 
-theorem step_iterate_append {t: thunk α} {n: ℕ} {t': thunk α} {cs cs': list (thunk α)}:
+theorem step_iterate_append {t: thunk α} {n: ℕ} {t': thunk α} {cs cs': list (thunk α × list α)}:
   step^[n] (execution t cs) = execution t' cs' → ∀ css,  step^[n] (execution t (cs ++ css)) = execution t' (cs' ++ css) :=
 begin
   induction n generalizing t t' cs cs',
@@ -375,9 +403,9 @@ begin
   rw [function.iterate_succ_apply, step_append h, n_ih hn]
 end
 
-theorem step_iterate_return {t: thunk α} {cs: list (thunk α)} {n: ℕ} {m: memory α}:
+theorem step_iterate_return {t: thunk α} {cs: list (thunk α × list α)} {n: ℕ} {m: memory α}:
   step^[n] (execution t cs) = result m →
-  ∀ c css, ∃ n' ≤ n, step^[n'] (execution t (cs ++ (c::css))) = execution (c.set_result m) css :=
+  ∀ c css, ∃ n' ≤ n, step^[n'] (execution t (cs ++ ((thunk.set_result' c (memory.null _))::css))) = execution (thunk.set_result c m) css :=
 begin
   induction n generalizing t cs m,
   { trivial },
@@ -396,10 +424,10 @@ end
 
 theorem step_iterate_return' {t: thunk α} {n: ℕ} {m: memory α}:
   step^[n] (execution t []) = result m →
-  ∀ c, ∃ n' ≤ n, step^[n'] (execution t [c]) = execution (c.set_result m) [] :=
+  ∀ c, ∃ n' ≤ n, step^[n'] (execution t [thunk.set_result' c (memory.null _)]) = execution (thunk.set_result c m) [] :=
 λ h c, step_iterate_return h c []
 
-theorem return_of_step_iterate {t c: thunk α} {cs css: list (thunk α)} {n: ℕ} {t': thunk α}:
+theorem return_of_step_iterate {t: thunk α } {c: thunk α × list α} {cs css: list (thunk α × list α)} {n: ℕ} {t': thunk α}:
   step^[n] (execution t (cs ++ c::css)) = execution t' css → ∃ (p: memory α) m ≤ n, step^[m] (execution t cs) = result p :=
 begin
   induction n using nat.strong_induction_on with n ih generalizing t c cs t',
@@ -433,7 +461,7 @@ begin
   simpa only [function.iterate_succ_apply, stack.step, hstep, ih₂] using ih₃,
 end
 
-theorem result_of_step_iterate {t c: thunk α} {cs: list (thunk α)} {n: ℕ} {t': thunk α}:
+theorem result_of_step_iterate {t: thunk α} {c: thunk α × list α} {cs: list (thunk α × list α)} {n: ℕ} {t': thunk α}:
   step^[n] (execution t (c::cs)) = execution t' cs →
   ∃ (p: memory α) m ≤ n, step^[m] (execution t []) = result p :=
 list.nil_append (c::cs) ▸ return_of_step_iterate
@@ -456,7 +484,7 @@ end
 
 def memory_usage_le: stack α → ℕ → Prop
 | (result m) n := m.usage_le n
-| (execution f fs) n := ((f::fs).map thunk.state).sum_le memory.usage_le n
+| (execution f fs) n := ((f::fs.map prod.fst).map thunk.state).sum_le memory.usage_le n
 
 def memory_usage_mono {s: stack α} {n m: ℕ}:
   s.memory_usage_le n → n ≤ m → s.memory_usage_le m :=
