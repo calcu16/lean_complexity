@@ -1,5 +1,6 @@
 import hmem.stack
 import complexity.basic
+import hmem.trace
 
 variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
 
@@ -75,6 +76,90 @@ theorem encode_is_false {p: Prop} {hp: ¬ p} (d: decidable p):
 
 theorem encode_is_true {p: Prop} {hp: p} (d: decidable p):
   (encode (is_true hp)) = (memory.null μ).setv 1 := rfl
+
+instance: complexity.has_encoding (runtime_model μ) bool :=
+begin
+  fconstructor,
+  fconstructor,
+  exact λ b,  (memory.null _).setv (ite b 1 0),
+  intros x y,
+  cases x;
+  cases y;
+  simp [has_equiv.equiv, memory.setv_inj_iff],
+end
+
+structure encodable_function (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)] :=
+  {α: Type} (α_en: complexity.encoding (runtime_model μ) α)
+  {β: Type} (β_en: complexity.encoding (runtime_model μ) β)
+  (f: α → β)
+
+structure encodable_application (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)] :=
+  {α: Type} (α_en: complexity.encoding (runtime_model μ) α)
+  {β: Type} (β_en: complexity.encoding (runtime_model μ) β)
+  (f: α → β)
+  (a: α)
+
+structure encoded_function (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)] :=
+  {α: Type} (α_en: complexity.encoding (runtime_model μ) α)
+  {β: Type} (β_en: complexity.encoding (runtime_model μ) β)
+  (f: α → β)
+  (p: program μ)
+  (pf: ∀ a : α, p.has_result (α_en.encode a) (β_en.encode (f a)))
+
+def program.call_structure_helper: program μ → ℕ → tree ℕ
+| [] n := tree.node n tree.nil tree.nil 
+| (@instruction.ite _ _ _ _ _ is'::is) n := tree.node n (program.call_structure_helper is 0) (program.call_structure_helper is' 0)
+| (instruction.call _ _ _::is) n := program.call_structure_helper is (n+1)
+| (i::is) n := program.call_structure_helper is n
+
+def program.call_structure: program μ → tree ℕ := flip program.call_structure_helper 0
+
+def tree.all₂ {α β: Type*} (f: α → β → Prop): tree α → tree β → Prop
+| tree.nil tree.nil := true
+| (tree.node a la ra) (tree.node b lb rb) := f a b ∧ tree.all₂ la lb ∧ tree.all₂ ra rb
+| _ _ := false
+
+instance {α β: Type*} (f: α → β → Prop) [fd: Π {a b}, decidable (f a b)] (as: tree α) (bs: tree β):
+  decidable (tree.all₂ f as bs) :=
+begin
+  induction as with _ _ _ lhs_ih rhs_ih generalizing bs,
+  { cases bs,
+    exact decidable.is_true trivial,
+    exact decidable.is_false not_false },
+  { cases bs,
+    exact decidable.is_false not_false,
+    cases fd,
+    exact decidable.is_false (not_and_of_not_left _ h),
+    cases lhs_ih _,
+    exact decidable.is_false (not_and_of_not_right _ (not_and_of_not_left _ h_1)),
+    cases rhs_ih _,
+    exact decidable.is_false (not_and_of_not_right _ (not_and_of_not_right _ h_2)),
+    exact decidable.is_true ⟨h, h_1, h_2⟩}
+end
+
+def tree.path {α: Type*}: tree α → list bool → list α
+| (tree.nil) _ := []
+| (tree.node a lhs rhs) [] := [a]
+| (tree.node a lhs rhs) (ff::p) := a :: tree.path lhs p
+| (tree.node a lhs rhs) (tt::p) := a :: tree.path rhs p
+
+-- def makes_calls (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
+--   {α: Type} [complexity.has_encoding (runtime_model μ) α]
+--   {β: Type} [complexity.has_encoding (runtime_model μ) β]
+--   (f: α → β)
+--   (i: ℕ) (c: α → list (encodable_application μ)) 
+--   (r: α → list α) :=
+--   ∃ (p: program μ) (t: tree (list (encodable_function μ))),
+--     tree.all₂ (λ l n, list.length l = n) t (program.call_structure p) ∧
+--     ∀ (a : α), ∃ (tr: trace μ), 
+--       p.has_trace (encode a) tr ∧
+--       list.forall₂
+--         (λ (ef: encoded_function μ) (pm: program μ × memory μ),
+--           ∃ 
+--       (list.join (t.path tr.branch)) 
+
+
+
 
 end encoding
 end hmem

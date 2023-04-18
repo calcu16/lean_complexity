@@ -1,4 +1,6 @@
 import tactic.basic
+import computability.encoding
+import computability.tm_computable
 
 -- Useful lemmas for dealing with function types
 lemma ftype {α α': Type} {β β': Type}: α = α' → β = β' → (α → β) = (α' → β') :=
@@ -250,3 +252,4 @@ def complexity_of_instance {α β γ: Type} [has_equiv β] [preorder γ] [has_ad
   (f: δ) [c: complexity.has_complexity m f] (cf: complexity.cost_function' m δ):
   c.value.cost ≤ cf → complexity.complexity_le f cf :=
  λ mono, complexity.complexity_le_trans m mono c.value.proof
+

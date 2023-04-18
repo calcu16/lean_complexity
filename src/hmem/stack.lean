@@ -13,6 +13,9 @@ begin
   trivial
 end
 
+theorem list.sum_le_nil' {α: Type u} {p: α → ℕ → Prop} {l: list α}:
+  l = [] → list.sum_le l p 0 := λ h, h.symm ▸ list.sum_le_nil
+
 theorem list.sum_le_cons {α: Type u} {hd: α} {tl: list α} {p: α → ℕ → Prop} {m m': ℕ}:
   p hd m →
   tl.sum_le p m' →
@@ -70,6 +73,9 @@ inductive instruction (α: Type u)
 | call (func: list instruction) (dst src: source α): instruction
 | recurse (dst src: source α): instruction
 
+instance {α: Type u}: inhabited (instruction α) :=
+  ⟨ instruction.mop instruction.memory_operation.COPY source.nil source.nil ⟩ 
+
 namespace instruction
 
 def const (dst: source α) (v: α): instruction α := vop (λ _, v) dst (vector.nil)
@@ -77,14 +83,9 @@ def uop (op: α → α) (dst src: source α): instruction α := vop (λ s: vecto
 def bop (op: α → α → α) (dst lhs rhs: source α): instruction α := vop (λ s: vector α 2, op (s.nth ⟨0, zero_lt_two⟩) (s.nth ⟨1, one_lt_two⟩)) dst (vector.cons lhs (vector.cons rhs vector.nil))
 def ifz (src: source α): list (instruction α) → instruction α := ite (λ s: vector α 1, (s.nth ⟨0, zero_lt_one⟩) = 0) (vector.cons src vector.nil)
 
-@[pattern]
-def copy: source α → source α → instruction α := instruction.mop instruction.memory_operation.COPY
-
-@[pattern]
-def move: source α → source α → instruction α := instruction.mop instruction.memory_operation.MOVE
-
-@[pattern]
-def swap: source α → source α → instruction α := instruction.mop instruction.memory_operation.SWAP
+@[pattern] def copy: source α → source α → instruction α := instruction.mop instruction.memory_operation.COPY
+@[pattern] def move: source α → source α → instruction α := instruction.mop instruction.memory_operation.MOVE
+@[pattern] def swap: source α → source α → instruction α := instruction.mop instruction.memory_operation.SWAP
 
 end instruction
 
@@ -145,6 +146,10 @@ begin
   refl,
 end
 
+theorem set_result_current' {t : thunk α × list α} {m: memory α}:
+  (thunk.set_result t m).current = t.fst.current :=
+eq.symm (set_result_current rfl)
+
 theorem set_result_set_result' {t : thunk α × list α} {m m': memory α}:
   set_result (set_result' t m) m' = set_result t m' :=
 begin
@@ -158,9 +163,14 @@ def step: thunk α → (thunk α ⊕ memory α ⊕ (option (program α) × memor
 | ⟨p, (instruction.vop op dst src)::is, m⟩ := sum.inl ⟨p, is, m.setvs dst (op (src.map (λ s, m.getvs s)))⟩
 | ⟨p, (instruction.mop op dst src)::is, m⟩ := sum.inl ⟨p, is, (m.setms src (m.mop op src dst)).setms dst (m.getms src)⟩
 | ⟨p, (instruction.clear dst)::is, m⟩ := sum.inl ⟨p, is, m.setms dst (memory.null _)⟩
-| ⟨p, (@instruction.ite _ _ cond dcond src branch)::is, m⟩ := sum.inl ⟨p, @ite _ (cond (src.map (λ s, m.getvs s))) (@dcond _) branch is, m⟩
+| ⟨p, (@instruction.ite _ _ cond dcond src is')::is, m⟩ := sum.inl ⟨p, @ite _ (cond (src.map (λ s, m.getvs s))) (@dcond _) is' is, m⟩
 | ⟨p, (instruction.call func dst src)::is, m⟩ := sum.inr (sum.inr (some func, m.getms src, ⟨p, is, m⟩, dst.get m))
 | ⟨p, (instruction.recurse dst src)::is, m⟩ := sum.inr (sum.inr (none, m.getms src,  ⟨p, is, m⟩, dst.get m))
+
+def takes_branch: thunk α → option bool
+| ⟨p, (@instruction.ite _ _ cond dcond src is')::is, m⟩ :=
+  @ite _ (cond (src.map (λ s, m.getvs s))) (@dcond _) (some tt) (some ff)
+| _ := none
 
 theorem step_nil_iff (t: thunk α):
   t.current = [] ↔ ∃ m, t.step = sum.inr (sum.inl m) :=
