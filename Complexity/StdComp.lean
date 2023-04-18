@@ -19,6 +19,9 @@ theorem eq_or_ne (a b : Nat) : (a = b) ∨ (a ≠ b) := by
         simp
         assumption
 
+theorem le_succ_self (a : Nat) : a ≤ Nat.succ a := by
+  apply Nat.le_of_lt
+  apply Nat.lt_succ_self 
 
 theorem lt_add_left {a b : Nat} : a < b → ∀ c, a < c + b := by
   intros p c
@@ -220,7 +223,6 @@ theorem le_max (a b : Nat) : ∃ x : Nat, a ≤ x ∧ b ≤ x :=
      exists a
      simp [And.intro]
      assumption
-
 
 theorem max_le (a b : Nat) : a ≤ Nat.max a b := by
   simp [Nat.max]

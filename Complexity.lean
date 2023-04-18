@@ -5,5 +5,6 @@ import Complexity.StdPow
 import Complexity.StdDiv
 import Complexity.Std
 import Complexity.BigO
+import Complexity.Cost
 import Complexity.BinaryNat
 import Complexity.BinaryNatSound

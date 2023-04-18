@@ -1,135 +1,137 @@
 import Complexity.Std
 import Complexity.StdComp
 import Complexity.StdDiv
+import Complexity.Cost
 
 namespace Complexity
+
 inductive BinaryNat : Nat → Type _ where
-  | bit : Bool → BinaryNat 0
+  | bit_false : BinaryNat 0
+  | bit_true : BinaryNat 0
   | intro : BinaryNat n → BinaryNat n → BinaryNat (n + 1)
 
 namespace BinaryNat
-
-inductive Cost : Type 0 where
-  | intro : Nat → Cost
-
-namespace Cost
-def init : Cost := Cost.intro Nat.zero
-def inc : Cost → Cost | intro value => intro (value + 1)
-def add : Cost → Nat → Cost | intro value => λ n => intro (value + n)
-end Cost
-
-def bit_zero (c: Cost) := (Cost.inc c, BinaryNat.bit false)
-
-def bit_one (c: Cost ):= (Cost.inc c, BinaryNat.bit true)  
-
+@[simp]
 def height (_ : BinaryNat n) : Nat := n
 
+@[simp]
 def bits (x : BinaryNat α) : Nat := 2 ^ (height x)
 
+@[simp]
 def bound (x : BinaryNat α) : Nat := 2 ^ (bits x)
 
 def toNat : (x : BinaryNat α) → Nat
-  | bit b => if b then 1 else 0
-  | intro y z =>
-    bound z * toNat y + toNat z
+  | BinaryNat.bit_false => 0
+  | BinaryNat.bit_true => 1
+  | BinaryNat.intro y z => bound z * toNat y + toNat z
 
 def ofNat (n a : Nat) : BinaryNat n :=
   match n with
-  | 0 => BinaryNat.bit (a % 2 == 1)
+  | 0 => if a % 2 == 1 then BinaryNat.bit_true else BinaryNat.bit_false
   | n + 1 => BinaryNat.intro (ofNat _ (a / 2 ^ 2 ^ n)) (ofNat _ a)
+end BinaryNat
 
-def ite : BinaryNat 0 → α → α → α := by
-  intro x
-  intro p
-  intro q
-  cases x with | bit b =>
-  apply (if b then p else q)
+namespace CostedBinaryNat
 
-def zero (c: Cost) (n : Nat) : (Cost × BinaryNat n) :=
+def bit_zero := Cost.succ BinaryNat.bit_false
+
+def bit_one := Cost.succ BinaryNat.bit_true
+
+def split (x : BinaryNat (n + 1)) :=
+  match x with | BinaryNat.intro x y => Cost.succ (x, y)
+
+def intro (x y: BinaryNat n) := Cost.succ (BinaryNat.intro x y)
+
+def ite : BinaryNat 0 → Costed α → Costed α → Costed α := λ x p q =>
+  Cost.bind (Cost.succ 0) λ _ =>
+  match x with
+  | BinaryNat.bit_true => p
+  | BinaryNat.bit_false => q
+
+def zero  (n : Nat) : Costed (BinaryNat n) :=
   match n with
-  | 0 => bit_zero c
-  | n + 1 =>
-    let (c, z) := zero c n
-    (Cost.inc c, BinaryNat.intro z z)
+  | 0 => bit_zero
+  | n + 1 => do
+    let z ← zero n
+    intro z z
 
-def extend (c : Cost) (n : Nat) : BinaryNat m → (Cost × BinaryNat (m + n)) :=
+def extend (n : Nat) : BinaryNat m → Costed (BinaryNat (m + n)) :=
   match n with
-  | 0 => λ x => (c, x)
-  | n + 1 => λ x =>
-    let (c, z) := zero c (m + n)
-    let (c, e) := extend c n x
-    (Cost.inc c, BinaryNat.intro z e)
+  | 0 => λ x => Cost.pure x
+  | n + 1 => λ x => do
+    let z ← zero (m + n)
+    let e ← extend n x
+    intro z e
 
-def add_with_carry (c: Cost) {n : Nat} : BinaryNat n → BinaryNat n → BinaryNat 0 → (Cost × BinaryNat 0 × BinaryNat n) :=
+def add_with_carry {n : Nat} : BinaryNat n → BinaryNat n → BinaryNat 0 → Costed (BinaryNat 0 × BinaryNat n) :=
   match n with
   | 0 => λ x y z =>
-    match x with
-    | bit xb =>
-      match y with
-      | bit yb => 
-        match z with 
-        | bit zb => (Cost.add c 7, (BinaryNat.bit (xb && yb || xb && zb || yb && zb)), (BinaryNat.bit ((xb ≠ yb) ≠ zb)))
-  | _ + 1 =>  λ x y z =>
-    match x with
-    | intro xu xl =>
-      match y with
-      | intro yu yl =>
-         let (c, z2, l) := add_with_carry c xl yl z
-         let (c, z3, u) := add_with_carry c xu yu z2
-         (Cost.inc c, z3, BinaryNat.intro u l)
+    ite x
+      (ite y
+        (ite z (Cost.cross bit_one bit_one) (Cost.cross bit_one bit_zero))
+        (ite z (Cost.cross bit_one bit_zero) (Cost.cross bit_zero bit_one))
+      )
+      (ite y 
+        (ite z (Cost.cross bit_one bit_zero) (Cost.cross bit_zero bit_one))
+        (ite z (Cost.cross bit_zero bit_one) (Cost.cross bit_zero bit_zero))
+      )
+  | _ + 1 =>  λ x y zc => do
+    let (xu, xl) ← split x
+    let (yu, yl) ← split y
+    let (zc, zl) ← add_with_carry xl yl zc
+    let (zc, zu) ← add_with_carry xu yu zc
+    let z ← intro zu zl
+    return (zc, z)
 
-def add (c: Cost) {n : Nat} : BinaryNat n → BinaryNat n → (Cost × BinaryNat n) :=
-  λ x y =>
-    let (c, z) := zero c 0
-    let (c, _, r) := add_with_carry c x y z
-    (c, r)
+def add {n : Nat} : BinaryNat n → BinaryNat n → Costed (BinaryNat n) :=
+  λ x y => do
+  let zc ← bit_zero
+  let (_, z) ← add_with_carry x y zc
+  return z
 
-def complement (c: Cost) {n : Nat} : BinaryNat n → (Cost × BinaryNat n) :=
+def complement {n : Nat} : BinaryNat n → Costed (BinaryNat n) :=
   match n with
-  | 0 => λ x =>
-    match x with | bit a => (Cost.inc c, BinaryNat.bit (!a))
-  | _ + 1 => λ x =>
-    match x with
-    | intro xu xl =>
-      let (c, cxu) := complement c xu
-      let (c, cxl) := complement c xl
-      (Cost.inc c, BinaryNat.intro cxu cxl)
+  | 0 => λ x => ite x bit_zero bit_one
+  | _ + 1 => λ x => do
+    let (xu, xl) ← split x
+    let cxu ← complement xu
+    let cxl ← complement xl
+    intro cxu cxl
 
-def sub (c: Cost) {n : Nat} : BinaryNat n → BinaryNat n → (Cost × BinaryNat n) :=
-  λ x y =>
-    let (c, cy) := complement c y
-    let (c, o) := bit_one c
-    let (c, _, r) := add_with_carry c x cy o
-    (c, r)
+def sub {n : Nat} : BinaryNat n → BinaryNat n → Costed (BinaryNat n) :=
+  λ x y => do
+    let cy ← complement y
+    let o ← bit_one
+    let (_, r) ← add_with_carry x cy o
+    return r
 
-def traditional_multiply (c: Cost) {n : Nat} : BinaryNat n → BinaryNat n -> (Cost × BinaryNat (n + 1)) :=
+def traditional_multiply {n : Nat} : BinaryNat n → BinaryNat n -> Costed (BinaryNat (n + 1)) :=
   match n with
-  | 0 => λ x y =>
-    match x with
-    | bit a =>
-      match y with
-      | bit b => extend (Cost.inc c) _ (BinaryNat.bit (a && b))
-  | _ + 1 => λ x y =>
-    match x with
-    | intro xu xl =>
-      match y with
-      | intro yu yl =>
-        let n := height yl
-        let (c, zn1) := zero c (n + 1)
-        let (c, zn) := zero c n
-        let (c, ll) := traditional_multiply c xl yl
-        let (c, lu) := traditional_multiply c xl yu
-        let (c, ul) := traditional_multiply c xu yl
-        let (c, uu) := traditional_multiply c xu yu
-        let ll := BinaryNat.intro zn1 ll
-        let lu := match lu with
-          | intro luu lul => BinaryNat.intro (BinaryNat.intro zn luu) (BinaryNat.intro lul zn)
-        let ul := match ul with
-          | intro ulu ull => BinaryNat.intro (BinaryNat.intro zn ulu) (BinaryNat.intro ull zn)
-        let uu := BinaryNat.intro uu zn1
-        let (c, zu) := add c uu lu
-        let (c, zl) := add c ul ll
-        add c zu zl
+  | 0 => λ x y => do
+    let z ←  ite x (ite y bit_one bit_zero) bit_zero
+    extend 1 z
+  | n + 1 => λ x y =>
+    let shift_n := λ zn w => do
+      let (wu, wl) ← split w
+      let wu ← intro zn wu
+      let wl ← intro wl zn
+      intro wu wl
+  do
+    let (xu, xl) ← split x
+    let (yu, yl) ← split y
+    let zn1 ← zero (n + 1)
+    let zn ← zero n
+    let ll ← traditional_multiply xl yl
+    let ll ← intro zn1 ll
+    let lu ← traditional_multiply xl yu
+    let lu ← shift_n zn lu
+    let ul ← traditional_multiply xu yl
+    let ul ← shift_n zn ul
+    let uu ← traditional_multiply xu yu
+    let uu ← intro uu zn1
+    let zu ← add uu lu
+    let zl ← add ul ll
+    add zu zl
 
-end BinaryNat
+end CostedBinaryNat
 end Complexity

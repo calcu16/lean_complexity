@@ -403,5 +403,36 @@ theorem mod_div_self {a b : Nat} : a % b / b = 0 := by
 theorem mod_add_mod_self {a b c : Nat} : (a % b + c) % b = (a + c) % b := by
   rw [mod_add_mod, ← mod_mod_self, ← mod_add_mod]
 
+theorem mul_mod_mod_mul_pos {a b c : Nat} : 0 < c → 0 < a → a * (b % c) % (a * c) = a * b % (a * c) := by
+  intros
+  rw [mod_mul (by assumption) (by assumption)]
+  rw [self_mul_mod]
+  rw [← Nat.add_zero (a * (b % c))]
+  rw [self_mul_div]
+  rw [zero_div]
+  rw [Nat.add_zero]
+  rw [Nat.add_zero]
+  rw [← mod_mod_self]
+  rw [mod_mul (by assumption) (by assumption)]
+  rw [self_mul_mod]
+  rw [← Nat.add_zero (a * b)]
+  rw [self_mul_div]
+  rw [zero_div]
+  rw [Nat.add_zero]
+  rw [Nat.add_zero]
+  assumption
+  assumption
+
+
+
+
+
+
+  
+
+
+  
+-- a * (b % c) % (a * c) = a * b % (a * c)
+
 end Std
 end Complexity
