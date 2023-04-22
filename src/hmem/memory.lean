@@ -121,6 +121,9 @@ section -- accessing hidden
 
 def null (α: Type*) [has_zero α] [decidable_eq α]: memory α := quotient.mk hidden.memory.leaf
 
+noncomputable def mk (value: α) (children: α → memory α): memory α :=
+quotient.mk (hidden.memory.node value (quotient.out ∘ children))
+
 def getv (m: memory α): α :=
 begin
   apply quotient.lift_on m (flip hidden.getvp []),
