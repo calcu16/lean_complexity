@@ -428,3 +428,146 @@ end
 
 end encoding
 end hmem
+
+open tactic
+run_cmd do
+  d ← get_decl `list.split._main,
+  trace format!"{d.value.to_raw_fmt}"
+
+/-
+λ [sort uu+1] [list ↑0],
+  list.brec_on ↑1
+    (λ: [list ↑1], prod (list ↑2) (list ↑2))
+
+
+(lam α implicit (sort uu+1)
+ (lam ᾰ default (app (const list [uu]) (var 0))
+  (app
+   (app
+    (app (app (const list.brec_on [uu+1, uu]) (var 1))
+     (lam ᾰ default (app (const list [uu]) (var 1))
+      (app (app (const prod [uu, uu]) (app (const list [uu]) (var 2))) (app (const list [uu]) (var 2)))))
+    (var 0))
+   (lam ᾰ default (app (const list [uu]) (var 1))
+    (lam _F default
+     (app
+      (app (app (const list.below [uu+1, uu]) (var 2))
+       (lam ᾰ default (app (const list [uu]) (var 2))
+        (app (app (const prod [uu, uu]) (app (const list [uu]) (var 3))) (app (const list [uu]) (var 3)))))
+      (var 0))
+     (app
+      (app
+       (lam ᾰ default (app (const list [uu]) (var 3))
+        (lam _F default
+         (app
+          (app (app (const list.below [uu+1, uu]) (var 4))
+           (lam ᾰ default (app (const list [uu]) (var 4))
+            (app (app (const prod [uu, uu]) (app (const list [uu]) (var 5))) (app (const list [uu]) (var 5)))))
+          (var 0))
+         (app
+          (app
+           (app
+            (app
+             (app (app (const list.cases_on [max 1 (uu+1), uu]) (var 5))
+              (lam ᾰ default (app (const list [uu]) (var 5))
+               (pi _F default
+                (app
+                 (app (app (const list.below [uu+1, uu]) (var 6))
+                  (lam ᾰ default (app (const list [uu]) (var 6))
+                   (app (app (const prod [uu, uu]) (app (const list [uu]) (var 7))) (app (const list [uu]) (var 7)))))
+                 (var 0))
+                (app (app (const prod [uu, uu]) (app (const list [uu]) (var 7))) (app (const list [uu]) (var 7))))))
+             (var 1))
+            (lam _F default
+             (app
+              (app (app (const list.below [uu+1, uu]) (var 5))
+               (lam ᾰ default (app (const list [uu]) (var 5))
+                (app (app (const prod [uu, uu]) (app (const list [uu]) (var 6))) (app (const list [uu]) (var 6)))))
+              (app (const list.nil [uu]) (var 5)))
+             (app
+              (app (const id_rhs [uu+1])
+               (app (app (const prod [uu, uu]) (app (const list [uu]) (var 6))) (app (const list [uu]) (var 6))))
+              (app
+               (app (app (app (const prod.mk [uu, uu]) (app (const list [uu]) (var 6))) (app (const list [uu]) (var 6)))
+                (app (const list.nil [uu]) (var 6)))
+               (app (const list.nil [uu]) (var 6))))))
+           (lam ᾰ_hd default (var 5)
+            (lam ᾰ_tl default (app (const list [uu]) (var 6))
+             (lam _F default
+              (app
+               (app (app (const list.below [uu+1, uu]) (var 7))
+                (lam ᾰ default (app (const list [uu]) (var 7))
+                 (app (app (const prod [uu, uu]) (app (const list [uu]) (var 8))) (app (const list [uu]) (var 8)))))
+               (app (app (app (const list.cons [uu]) (var 7)) (var 1)) (var 0)))
+              (app
+               (app (const id_rhs [uu+1])
+                (app (app (const prod [uu, uu]) (app (const list [uu]) (var 8))) (app (const list [uu]) (var 8))))
+               (app (app (app (const list.split._match_1 [uu]) (var 8)) (var 2))
+                (app
+                 (app
+                  (app (const pprod.fst [uu+1, max 1 (uu+1)])
+                   (app
+                    (lam ᾰ default (app (const list [uu]) (var 8))
+                     (app (app (const prod [uu, uu]) (app (const list [uu]) (var 9))) (app (const list [uu]) (var 9))))
+                    (var 1)))
+                  (app
+                   (app
+                    (app
+                     (app (app (const list.rec [(max 1 (uu+1))+1, uu]) (var 8))
+                      (lam n default (app (const list [uu]) (var 8)) (sort max 1 (uu+1))))
+                     (const punit [max 1 (uu+1)]))
+                    (lam hd default (var 8)
+                     (lam tl default (app (const list [uu]) (var 9))
+                      (lam ih default (sort max 1 (uu+1))
+                       (app
+                        (app (const pprod [max 1 (uu+1), max 1 (uu+1)])
+                         (app
+                          (app (const pprod [uu+1, max 1 (uu+1)])
+                           (app
+                            (lam ᾰ default (app (const list [uu]) (var 11))
+                             (app (app (const prod [uu, uu]) (app (const list [uu]) (var 12)))
+                              (app (const list [uu]) (var 12))))
+                            (var 1)))
+                          (var 0)))
+                        (const punit [max 1 (uu+1)]))))))
+                   (var 1)))
+                 (app
+                  (app
+                   (app (const pprod.fst [max 1 (uu+1), max 1 (uu+1)])
+                    (app
+                     (app (const pprod [uu+1, max 1 (uu+1)])
+                      (app
+                       (lam ᾰ default (app (const list [uu]) (var 8))
+                        (app (app (const prod [uu, uu]) (app (const list [uu]) (var 9)))
+                         (app (const list [uu]) (var 9))))
+                       (var 1)))
+                     (app
+                      (app
+                       (app
+                        (app (app (const list.rec [(max 1 (uu+1))+1, uu]) (var 8))
+                         (lam n default (app (const list [uu]) (var 8)) (sort max 1 (uu+1))))
+                        (const punit [max 1 (uu+1)]))
+                       (lam hd default (var 8)
+                        (lam tl default (app (const list [uu]) (var 9))
+                         (lam ih default (sort max 1 (uu+1))
+                          (app
+                           (app (const pprod [max 1 (uu+1), max 1 (uu+1)])
+                            (app
+                             (app (const pprod [uu+1, max 1 (uu+1)])
+                              (app
+                               (lam ᾰ default (app (const list [uu]) (var 11))
+                                (app (app (const prod [uu, uu]) (app (const list [uu]) (var 12)))
+                                 (app (const list [uu]) (var 12))))
+                               (var 1)))
+                             (var 0)))
+                           (const punit [max 1 (uu+1)]))))))
+                      (var 1))))
+                   (const punit [max 1 (uu+1)]))
+                  (var 0)))))))))
+          (var 0))))
+       (var 1))
+      (var 0)))))))
+
+-/
+
+

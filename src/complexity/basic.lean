@@ -42,7 +42,7 @@ namespace model
 @[simp] def cost_type: model α β γ → Type u₂ := λ _, γ
 end model
 
-structure encoding (m: model α β γ) (δ: Type) :=
+structure encoding (m: model α β γ) (δ: Type*) :=
 mk ::
   (encode: δ → β)
   (encode_inj: ∀ x y: δ, encode x ≈ encode y ↔ x = y)
@@ -50,10 +50,10 @@ mk ::
 variables {m: model α β γ}
 
 namespace encoding
-variables {δ: Type}
+variables {δ: Type*}
 
 @[simp] def model : encoding m δ → model α β γ := λ _,  m
-@[simp] def type : encoding m δ → Type := λ _, δ
+@[simp] def type : encoding m δ → Type* := λ _, δ
 
 @[simp] def application (en: encoding m δ) (prog: α) (arg: δ): α :=
   en.model.application prog (en.encode arg)
@@ -62,7 +62,7 @@ variables {δ: Type}
   en.encode a ≈ en.encode b ↔ a = b := en.encode_inj _ _
 end encoding
 
-class has_encoding (m: model α β γ) (δ: Type):= (value: encoding m δ)
+class has_encoding (m: model α β γ) (δ: Type*) := (value: encoding m δ)
 
 def encode (m: model α β γ) {δ: Type} [f: has_encoding m δ] := f.value.encode
 

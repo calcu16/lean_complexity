@@ -25,6 +25,10 @@ def runtime_model (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_z
 
 def encode {δ: Type} [complexity.has_encoding (runtime_model μ) δ]: δ → memory μ := complexity.encode (runtime_model μ)
 
+theorem encode_inj {δ: Type} [en: complexity.has_encoding (runtime_model μ) δ] {a b: δ}:
+  @encode μ _ _ _ _ δ _ a = encode b → a = b :=
+(en.value.encode_inj _ _).mp
+
 instance (α β: Type*)  [α_en: complexity.has_encoding (runtime_model μ) α] [β_en: complexity.has_encoding (runtime_model μ) β]:
   complexity.has_encoding (runtime_model μ) (α × β) :=
 begin
