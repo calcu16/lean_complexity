@@ -174,7 +174,7 @@ end
 
 theorem merge_sort_complexity {α: Type*} [complexity.has_encoding (runtime_model μ) α]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
-  {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (encode (a, b)) (encode (dcmp a b)))
+  {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (@encode _ _ _ _ _ (α × α) _ (a, b)) (encode (dcmp a b)))
   {c: ℕ} {l: list α}
   (hcost: ∀ a b, a ∈ l → b ∈ l → pcmp.has_time_cost (encode (a, b)) c):
   (merge_sort pcmp).has_time_cost (encode l) ((22 + c) * l.length * (nat.clog 2 l.length) + 2) :=

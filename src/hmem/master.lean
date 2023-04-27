@@ -6,6 +6,10 @@ variables {α: Type u} [has_zero α] [decidable_eq α]
 namespace hmem
 namespace program
 
+-- sum (mrc^i) fc(n-i)
+-- mrc^n*fc(0)
+-- fc(n)
+-- crtical := n * mrc
 def divide_and_conquer_cost (p: program α) (fc: ℕ → ℕ): ℕ → ℕ
 | 0 := p.max_internal_cost + fc 0
 | (n+1) := p.max_internal_cost + fc (n + 1) + divide_and_conquer_cost n * p.max_recurse_count
