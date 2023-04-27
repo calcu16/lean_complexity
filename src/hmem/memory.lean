@@ -99,6 +99,48 @@ end
 
 def equiv (α: Type*) [has_zero α] [decidable_eq α] (a b: memory α): Prop := ∀ p, getvp a p = getvp b p
 
+instance (α: Type*) [has_zero α] [deq: decidable_eq α] [ft: fintype α]: decidable_rel (equiv α) :=
+begin
+  intros x y,
+  induction x generalizing y,
+  { induction y,
+    { exact decidable.is_true (λ _, rfl) },
+    cases deq 0 y_value with heq heq,
+    { exact decidable.is_false (λ h, absurd (h []) heq) },
+    cases @fintype.decidable_forall_fintype _ _ y_ih _ with hft hft,
+    { apply decidable.is_false,
+      contrapose! hft,
+      exact λ a as, hft (a::as) },
+    apply decidable.is_true,
+    intro p,
+    cases p,
+    exact heq,
+    exact hft p_hd p_tl },
+  cases y,
+  { cases deq x_value 0 with heq heq,
+    { exact decidable.is_false (λ h, absurd (h []) heq) },
+    cases @fintype.decidable_forall_fintype _ _ (λ a, x_ih a memory.leaf) _ with hft hft,
+    { apply decidable.is_false,
+      contrapose! hft,
+      exact λ a as, hft (a::as) },
+    apply decidable.is_true,
+    intro p,
+    cases p,
+    exact heq,
+    exact hft p_hd p_tl },
+  cases deq x_value y_value with heq heq,
+  { exact decidable.is_false (λ h, absurd (h []) heq) },
+  cases @fintype.decidable_forall_fintype _ _ (λ a, x_ih a (y_children a)) _ with hft hft,
+  { apply decidable.is_false,
+    contrapose! hft,
+    exact λ a as, hft (a::as) },
+  apply decidable.is_true,
+  intro p,
+  cases p,
+  exact heq,
+  exact hft p_hd p_tl
+end
+
 @[refl]
 theorem equiv_refl (m: memory α): equiv α m m := λ _, rfl
 
@@ -106,7 +148,7 @@ theorem equiv_refl (m: memory α): equiv α m m := λ _, rfl
 theorem equiv_symm (m n: memory α): equiv α m n → equiv α n m := λ h p, symm (h p)
 
 @[trans]
-theorem equiv_trans (a b c: memory α): equiv α a b → equiv α b c → equiv α a c := λ hab hbc p, trans (hab p) (hbc p)
+theorem equiv_trans (a b c: memory α): equiv α a b → equiv α b c → equiv α a c := λ hab hbc p, trans (hab p) (hbc p) 
 
 end hidden
 
@@ -323,7 +365,6 @@ begin
   rw ← ne_zero_iff,
   apply_instance
 end
-
 end -- no more need for hidden
 
 theorem getv_congr {m m': memory α} {v v': α}:
@@ -432,6 +473,116 @@ def usage_le (m: memory α) (n: ℕ): Prop :=
 def unique_usage_le (m: memory α) (n: ℕ): Prop :=
   set.size_le { m': memory α | ∃ p, m.getmp p = m } n
 
+section
+
+theorem equiv_def (m m': hidden.memory α): hidden.getvp m = hidden.getvp m' → m ≈ m' :=
+by intros h p; apply congr_fun h
+
+theorem equiv_def' (m m': hidden.memory α): m ≈ m' → hidden.getvp m = hidden.getvp m' :=
+by intro h; ext1 p; exact h p
+
+theorem out_getvp (m: memory α): hidden.getvp (quotient.out m) = m.getvp :=
+begin
+  ext1 p,
+  induction p generalizing m,
+  exact getv_congr (quotient.out_eq m) rfl rfl,
+  { rw [getvp_cons, ← hidden.getvp_getm, ← p_ih (m.getm p_hd)],
+    apply congr_fun,
+    apply equiv_def',
+    apply quotient.exact _,
+    rw [← getm_mk, quotient.out_eq, quotient.out_eq] }
+end
+
+theorem mk_getvp (m: hidden.memory α): hidden.getvp m = getvp ⟦m⟧ :=
+begin
+  rw [← out_getvp],
+  apply equiv_def',
+  apply quotient.exact _,
+  rw [quotient.out_eq],
+end
+
+def has_height: memory α → ℕ → Prop
+| m 0 := m = null α
+| m (n+1) := ∀ a, has_height (m.getm a) n
+
+theorem has_height_null (n: ℕ): (null α).has_height n :=
+begin
+  induction n,
+  exact rfl,
+  exact λ a, (getm_null a).symm ▸ n_ih,
+end
+
+theorem has_height_mono {m: memory α} {n n': ℕ}: m.has_height n → n ≤ n' → m.has_height n' :=
+begin
+  induction n' with n' ih generalizing n m,
+  { intros hm hn,
+    rwa [nat.eq_zero_of_le_zero hn] at hm },
+  cases n,
+  { exact λ hm _ a, hm.symm ▸ (getm_null a).symm ▸ has_height_null n' },
+  exact λ hm hn a, ih (hm a) (nat.succ_le_succ_iff.mp hn)
+end
+
+instance [fintype α] (m: memory α) (n: ℕ): decidable (has_height m n) :=
+begin
+  induction n generalizing m,
+  { unfold has_height, apply_instance },
+  unfold has_height,
+  haveI: decidable_pred (λ a, (m.getm a).has_height n_n) := (λ a, n_ih (m.getm a)),
+  apply_instance,
+end
+
+theorem has_height_exists [ft: fintype α] (m: memory α):
+  ∃ n, m.has_height n :=
+begin
+  rw [← quotient.out_eq m],
+  induction quotient.out m generalizing,
+  { exact ⟨0, rfl⟩ },
+  by_cases finset.nonempty ft.elems,
+  { refine ⟨finset.max' _ (finset.nonempty.image h (λ a, classical.some (ih a))) + 1, _⟩,
+    intro a,
+    rw [getm_mk, hidden.getm],
+    apply has_height_mono,
+    apply classical.some_spec (ih a),
+    apply finset.le_max',
+    apply finset.mem_image_of_mem,
+    apply fintype.complete },
+  refine ⟨1, _⟩,
+  intro a,
+  exfalso,
+  apply h,
+  use a,
+  apply fintype.complete,
+end
+
+def out_helper: memory α → ℕ → hidden.memory α
+| m 0 := hidden.memory.leaf
+| m (n+1) := hidden.memory.node m.getv (λ a, out_helper (m.getm a) n)
+
+theorem out_helper_eq {m: memory α} {n: ℕ}: m.has_height n → ⟦m.out_helper n⟧ = m :=
+begin
+  induction n generalizing m,
+  { unfold has_height out_helper,
+    intro h,
+    rw [h],
+    refl },
+  unfold has_height out_helper,
+  intro h,
+  refine eq.trans _ (quotient.out_eq m),
+  apply quotient.sound,
+  intro p,
+  rw [out_getvp],
+  cases p,
+  { refl },
+  unfold hidden.getvp,
+  rw [getvp_cons, mk_getvp],
+  apply congr_arg2 _ (n_ih (h _)) rfl,
+end
+
+def out [fintype α] (m: memory α): hidden.memory α := out_helper m (nat.find (has_height_exists m))
+
+theorem out_eq [fintype α] (m: memory α): ⟦m.out⟧ = m :=
+out_helper_eq (nat.find_spec _)
+end
 end memory
 
 inductive source (α: Type u)
