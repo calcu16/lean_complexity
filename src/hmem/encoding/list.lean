@@ -4,7 +4,7 @@ import hmem.split_cost
 import hmem.trace
 import complexity.basic
 
-variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
+variables {μ: Type} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
 
 namespace hmem
 namespace encoding
