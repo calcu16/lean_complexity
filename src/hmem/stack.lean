@@ -503,14 +503,38 @@ begin
   { apply set.size_le_mono },
   { apply list.sum_le_mono }
 end
+
+def get_result: stack α → memory α
+| (result m) := m
+| _ := memory.null α
+
+theorem get_result_value_of_exists {s: stack α}: (∃ m, s = stack.result m) → s = result s.get_result :=
+by cases s; simpa only [get_result, exists_eq', exists_false, eq_self_iff_true] using id
+
 end stack
 
 namespace program
 def halts_on (p: program α) (inp: memory α) :=
   ∃ n outp, stack.step^[n] (stack.execution ⟨p, p, inp⟩ []) = stack.result outp
 
+instance decidable_stack_result (s: stack α): decidable_pred (λ n, ∃ outp,(stack.step^[n]) s = stack.result outp) :=
+begin
+  intro n,
+  cases h:((stack.step^[n]) s) with m,
+  exact decidable.is_true ⟨m, h⟩,
+  refine decidable.is_false _,
+  simpa only [h, exists_false] using not_false,
+end
+
+def result (p: program α) (inp: memory α) (h: halts_on p inp): memory α :=
+stack.get_result ((stack.step^[nat.find h]) (stack.execution ⟨p, p, inp⟩ []))
+
 def has_result (p: program α) (inp outp: memory α) :=
   ∃ n, stack.step^[n] (stack.execution ⟨p, p, inp⟩ []) = stack.result outp
+
+theorem result_sound (p: program α) (inp: memory α) (h: halts_on p inp):
+  has_result p inp (result p inp h) :=
+⟨_, stack.get_result_value_of_exists (nat.find_spec h)⟩
 
 def has_time_cost (p: program α) (inp: memory α) (n: ℕ) :=
   ∃ outp, stack.step^[n] (stack.execution ⟨p, p, inp⟩ []) = stack.result outp

@@ -9,50 +9,44 @@ variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:�
 namespace hmem
 namespace encoding
 
-def encode_list {α: Type*} [α_en: complexity.has_encoding (runtime_model μ) α]: list α → memory μ
+def encode_list {α: Type*} [α_en: has_encoding α μ]: list α → memory μ
 | [] := memory.null _
 | (x::xs) := (((memory.null _).setv 1).setm 0 (encode x)).setm 1 (encode_list xs)
 
-instance (α: Type*) [α_en: complexity.has_encoding (runtime_model μ) α]: complexity.has_encoding (runtime_model μ) (list α) :=
-⟨ ⟨ encode_list,
+instance list_encoding (α: Type*) [α_en: has_encoding α μ]: has_encoding (list α) μ :=
+⟨ encode_list,
 begin
   intros x y,
-  split,
-  {  induction x generalizing y;
-    cases y,
-    { simp only [has_equiv.equiv, eq_self_iff_true, imp_true_iff] },
-    { simp only [has_equiv.equiv, (list.cons_ne_nil _ _).symm, iff_false, encode_list],
-      intro h,
-      apply @zero_ne_one μ,
-      apply memory.getv_congr h,
-      refl,
-      rw [memory.getv_setm, memory.getv_setm, memory.getv_setv] },
-    { simp only [has_equiv.equiv, (list.cons_ne_nil _ _), iff_false, encode_list],
-      intro h,
-      apply (@zero_ne_one μ _ _ _).symm,
-      apply memory.getv_congr h,
-      rw [memory.getv_setm, memory.getv_setm, memory.getv_setv],
-      refl },
-    simp only [has_equiv.equiv, encode_list, encode],
+  rw [memory_equiv_eq_iff],
+  induction x generalizing y;
+  cases y,
+  { simp only [has_equiv.equiv, eq_self_iff_true, imp_true_iff] },
+  { simp only [has_equiv.equiv, (list.cons_ne_nil _ _).symm, iff_false, encode_list],
     intro h,
-    split,
-    { 
-      rw ← complexity.encoding.encode_inj α_en.value,
-      apply memory.getm_congr 0 h;
-      { rw [memory.getm_setm_ne, memory.getm_setm],
-        refl,
-        apply zero_ne_one } },
-    apply x_ih,
-    apply memory.getm_congr 1 h;
-    { rw [memory.getm_setm] } },
+    apply @zero_ne_one μ,
+    apply memory.getv_congr h,
+    refl,
+    rw [memory.getv_setm, memory.getv_setm, memory.getv_setv] },
+  { simp only [has_equiv.equiv, (list.cons_ne_nil _ _), iff_false, encode_list],
+    intro h,
+    apply (@zero_ne_one μ _ _ _).symm,
+    apply memory.getv_congr h,
+    rw [memory.getv_setm, memory.getv_setm, memory.getv_setv],
+    refl },
+  simp only [has_equiv.equiv, encode_list, encode],
   intro h,
-  rw [h],
-  unfold has_equiv.equiv,
-end ⟩ ⟩ 
+  split,
+  { apply encode_inj' μ,
+    apply memory.getm_congr 0 h;
+    rw [memory.getm_setm_nz, memory.getm_setm] },
+  apply x_ih,
+  apply memory.getm_congr 1 h;
+  rw [memory.getm_setm]
+end ⟩
 
-theorem encode_nil {α: Type*} [complexity.has_encoding (runtime_model μ) α]: encode (@list.nil α) = memory.null μ := rfl
+theorem encode_nil {α: Type*} [has_encoding α μ]: encode (@list.nil α) = memory.null μ := rfl
 
-theorem encode_cons {α: Type*} [complexity.has_encoding (runtime_model μ) α] (x: α) (xs: list α): encode (x::xs) = (((memory.null μ).setv 1).setm 0 (encode x)).setm 1 (encode xs) := rfl
+theorem encode_cons {α: Type*} [has_encoding α μ] (x: α) (xs: list α): encode (x::xs) = (((memory.null μ).setv 1).setm 0 (encode x)).setm 1 (encode xs) := rfl
 
 def split (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]: program μ :=
 [ -- xs
@@ -72,17 +66,17 @@ def split (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:�
 
 def split_trace
   (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
-  {α: Type*} [complexity.has_encoding (runtime_model μ) α]: list α → hmem.trace μ
+  {α: Type*} [has_encoding α μ]: list α → hmem.trace μ
 | [] := ⟨ encode (@list.nil α, @list.nil α), [tt], 2, [], [] ⟩
 | (x::xs) := ⟨ encode (list.split (x::xs)), [ff], 4, [], [encode xs] ⟩
 
 theorem split_trace_result
   (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
-  {α: Type*} [complexity.has_encoding (runtime_model μ) α] (l: list α):
+  {α: Type*} [has_encoding α μ] (l: list α):
   (split_trace μ l).result = encode l.split :=
 by cases l; refl
 
-theorem split_has_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α] (l : list α):
+theorem split_has_trace {α: Type*} [has_encoding α μ] (l : list α):
   (split μ).has_trace (encode l) (split_trace μ l) :=
 begin
   induction l,
@@ -167,7 +161,7 @@ def merge {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:�
   -- 1 a xs
 ]
 
-def merge_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ):
+def merge_trace {α: Type*} [has_encoding α μ] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ):
   list α → list α → trace μ
 | [] b := ⟨ encode b, [tt], 2, [], [] ⟩
 | (a::as) [] := ⟨ encode (a::as), [ff, tt], 3, [], [] ⟩
@@ -176,11 +170,11 @@ def merge_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α] (fcm
     [encode (a, b)],
     [encode (if fcmp a b then (as, b::bs) else (a::as, bs))] ⟩
 
-theorem merge_trace_result {α: Type*} [complexity.has_encoding (runtime_model μ) α] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ)
+theorem merge_trace_result {α: Type*} [has_encoding α μ] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ)
   (as bs: list α): (merge_trace fcmp pcmp as bs).result = encode (list.merge fcmp as bs) :=
 by cases as; cases bs; unfold merge_trace list.merge; split_ifs; refl
 
-theorem merge_has_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α]
+theorem merge_has_trace {α: Type*} [has_encoding α μ]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (encode (a, b)) (encode (dcmp a b)))
   (as bs: list α):
@@ -335,7 +329,7 @@ def merge_sort {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero
   -- ms l
 ]
 
-def merge_sort_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ):
+def merge_sort_trace {α: Type*} [has_encoding α μ] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ):
   list α → trace μ
 | [] := ⟨encode (@list.nil α), [tt], 1, [], []⟩
 | [a] := ⟨encode [a], [tt], 1, [], []⟩
@@ -347,7 +341,7 @@ def merge_sort_trace {α: Type*} [complexity.has_encoding (runtime_model μ) α]
      [encode as, encode bs]⟩
   end
 
-theorem merge_sort_result {α: Type*} [complexity.has_encoding (runtime_model μ) α] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ) (l: list α):
+theorem merge_sort_result {α: Type*} [has_encoding α μ] (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp] (pcmp: program μ) (l: list α):
   (merge_sort_trace fcmp pcmp l).result = encode (list.merge_sort fcmp l) :=
 begin
   cases l with a l,
@@ -359,7 +353,7 @@ begin
 end
 
 theorem merge_sort_has_trace
-  {α: Type*} [complexity.has_encoding (runtime_model μ) α]
+  {α: Type*} [has_encoding α μ]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (encode (a, b)) (encode (dcmp a b)))
   (l: list α):
@@ -429,10 +423,10 @@ end
 end encoding
 end hmem
 
-open tactic
-run_cmd do
-  d ← get_decl `list.split._main,
-  trace format!"{d.value.to_raw_fmt}"
+-- open tactic
+-- run_cmd do
+--   d ← get_decl `list.split._main,
+--   trace format!"{d.value.to_raw_fmt}"
 
 /-
 λ [sort uu+1] [list ↑0],

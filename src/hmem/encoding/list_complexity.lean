@@ -8,8 +8,8 @@ variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:�
 namespace hmem
 namespace encoding
 
-theorem split_complexity {α: Type*} [complexity.has_encoding (runtime_model μ) α] (l: list α):
-  (split μ).has_time_cost (encode l) (5 * l.length + 3) :=
+theorem split_complexity {α: Type*} [has_encoding α μ] (l: list α):
+  (split μ).has_time_cost (encode l:memory μ) (5 * l.length + 3) :=
 begin
   induction l,
   { apply thunk.time_cost_of_split',
@@ -32,7 +32,7 @@ begin
     ring }
 end
 
-theorem merge_complexity {α: Type*} [complexity.has_encoding (runtime_model μ) α]
+theorem merge_complexity {α: Type*} [has_encoding α μ]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (encode (a, b)) (encode (dcmp a b)))
   {c: ℕ}
@@ -172,7 +172,7 @@ begin
   apply nat.le_succ,
 end
 
-theorem merge_sort_complexity {α: Type*} [complexity.has_encoding (runtime_model μ) α]
+theorem merge_sort_complexity {α: Type*} [has_encoding α μ]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (@encode _ _ _ _ _ (α × α) _ (a, b)) (encode (dcmp a b)))
   {c: ℕ} {l: list α}

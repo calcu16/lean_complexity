@@ -10,17 +10,16 @@ namespace hmem
 namespace encoding
 
 
-instance: complexity.has_encoding (runtime_model μ) (memory μ) :=
-⟨ ⟨ id, λ _ _, by refl  ⟩ ⟩
+instance memory_encoding : has_encoding (memory μ) μ :=
+⟨ id, λ a b, (memory_equiv_eq_iff _ _ _).mp ⟩
 
-noncomputable instance {α: Type*} [complexity.has_encoding (runtime_model μ) α]:
-  complexity.has_encoding (runtime_model μ) (μ → α) :=
+noncomputable instance funencoding {α: Type*} [has_encoding α μ]:
+  has_encoding (μ → α) μ :=
 begin
   fconstructor,
-  fconstructor,
   exact λ f, quotient.mk (hidden.memory.node (0:μ) (λ u, quotient.out (encode (f u)))),
-  intros x y,
-  split,
+  intros x y p,
+  rw [memory_equiv_eq_iff],
   intro p,
   funext u,
   have h := congr_fun (congr_arg memory.getm p) u,
@@ -28,19 +27,15 @@ begin
   unfold hidden.getm at h,
   rw [quotient.out_eq, quotient.out_eq] at h,
   apply encode_inj h,
-  intro h,
-  rw [h],
-  exact rfl,
 end
 
-instance fin_memory_encoding {α: Type*} [fintype μ] [complexity.has_encoding (runtime_model μ) α]:
-  complexity.has_encoding (runtime_model μ) (μ → α) :=
+instance fin_memory_fun_encoding {α: Type*} [fintype μ] [has_encoding α μ]:
+  has_encoding (μ → α) μ :=
 begin
-  fconstructor,
   fconstructor,
   exact λ f, quotient.mk (hidden.memory.node (0:μ) (λ u, memory.out (encode (f u)))),
   intros x y,
-  split,
+  rw [memory_equiv_eq_iff],
   intro p,
   funext u,
   have h := congr_fun (congr_arg memory.getm p) u,
@@ -48,9 +43,6 @@ begin
   unfold hidden.getm at h,
   rw [memory.out_eq, memory.out_eq] at h,
   apply encode_inj h,
-  intro h,
-  rw [h],
-  exact rfl,
 end
 
 -- def encode_vector_function {α: Type*} [complexity.has_encoding (runtime_model μ) α] [∀ {β: Type*} [complexity.has_encoding (runtime_model μ) β], complexity.has_encoding (runtime_model μ) (μ → β)]:
