@@ -2,7 +2,8 @@ import hmem.stack
 import complexity.basic
 import hmem.trace
 
-variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
+universe u
+variables {μ: Type} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
 
 namespace hmem
 namespace encoding
@@ -17,7 +18,7 @@ def build_arg: list (memory μ) → memory μ
 | [m] := m
 | (x::xs) := push_arg (build_arg xs) x
 
-def runtime_model (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]: complexity.model :=
+def runtime_model (μ: Type) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]: complexity.model :=
 ⟨ (program μ × list (memory μ)),
   memory μ,
   memory μ,
@@ -27,10 +28,16 @@ def runtime_model (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_z
   infer_instance,
   infer_instance,
   λ p_a a, (p_a.fst, a::p_a.snd),
-  λ p_a, p_a.fst.has_time_cost (build_arg p_a.snd),
+  λ p_a, (prod.fst p_a).has_time_cost (build_arg p_a.snd),
   λ p_a _ h, program.result p_a.fst (build_arg p_a.snd) ⟨_, h⟩,
   λ _ _, le_self_add,
   λ _ _ _ hrc₀ hc, program.time_cost_mono hrc₀ hc ⟩
+
+theorem runtime_model_apply (p: program μ) (ms: list (memory μ)) (m: memory μ):
+  (runtime_model μ).apply (p, ms) m = (p, m::ms) := rfl
+  
+theorem runtime_model_has_cost (p: program μ) (ms: list (memory μ)) (n: ℕ):
+  (runtime_model μ).has_cost (p, ms) n ↔ p.has_time_cost (build_arg ms) n := ⟨ id, id ⟩
 
 theorem memory_equiv_eq_iff (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)] (m m': (runtime_model μ).Data):
   ⟦m⟧ = ⟦m'⟧ ↔ m = m' := ⟨quotient.exact, λ h, h ▸ rfl⟩
@@ -40,6 +47,8 @@ def encode {α: Type*} [complexity.has_encoding α (runtime_model μ).Data]: α 
 
 @[reducible]
 def has_encoding (α: Type*) (μ: Type*) [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)] := complexity.has_encoding α (runtime_model μ).Data
+
+instance (α: Type*) [en: has_encoding α μ]: complexity.has_encoding α (runtime_model μ).Result := en
 
 theorem encode_inj {α: Type*} [has_encoding α μ] {a b: α}: (encode a:memory μ) = encode b → a = b :=
 begin

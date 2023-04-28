@@ -4,7 +4,7 @@ import hmem.split_cost
 import hmem.trace
 import complexity.basic
 
-variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
+variables {μ: Type} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
 
 namespace hmem
 namespace encoding
@@ -18,7 +18,7 @@ noncomputable instance funencoding {α: Type*} [has_encoding α μ]:
 begin
   fconstructor,
   exact λ f, quotient.mk (hidden.memory.node (0:μ) (λ u, quotient.out (encode (f u)))),
-  intros x y p,
+  intros x y,
   rw [memory_equiv_eq_iff],
   intro p,
   funext u,

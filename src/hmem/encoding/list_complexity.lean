@@ -3,12 +3,12 @@ import hmem.encoding.list
 import hmem.split_cost
 import complexity.basic
 
-variables {μ: Type*} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
+variables {μ: Type} [decidable_eq μ] [has_zero μ] [has_one μ] [ne_zero (1:μ)]
 
 namespace hmem
 namespace encoding
 
-theorem split_complexity {α: Type*} [has_encoding α μ] (l: list α):
+theorem split_time_cost {α: Type*} [has_encoding α μ] (l: list α):
   (split μ).has_time_cost (encode l:memory μ) (5 * l.length + 3) :=
 begin
   induction l,
@@ -32,7 +32,7 @@ begin
     ring }
 end
 
-theorem merge_complexity {α: Type*} [has_encoding α μ]
+theorem merge_time_cost {α: Type*} [has_encoding α μ]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (encode (a, b)) (encode (dcmp a b)))
   {c: ℕ}
@@ -172,7 +172,7 @@ begin
   apply nat.le_succ,
 end
 
-theorem merge_sort_complexity {α: Type*} [has_encoding α μ]
+theorem merge_sort_time_cost {α: Type*} [has_encoding α μ]
   (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
   {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (@encode _ _ _ _ _ (α × α) _ (a, b)) (encode (dcmp a b)))
   {c: ℕ} {l: list α}
@@ -212,9 +212,9 @@ begin
   { simp only [merge_sort_trace, hsplit],
     unfold trace.has_call_cost merge_sort merge_sort_trace trace.prog_calls program.calls_on_branch thunk.current instruction.ifz trace.branch,  
     apply list.sum_le_cons,
-    apply split_complexity,
+    apply split_time_cost,
     apply list.sum_le_cons,
-    apply merge_complexity fcmp hcmp,
+    apply merge_time_cost fcmp hcmp,
     { intros a b ha hb,
       apply hcost,
       rw [list.perm.mem_iff (list.perm_merge_sort _ _)] at ha hb,
@@ -313,6 +313,26 @@ begin
     apply nat.succ_le_succ,
     apply nat.succ_le_succ,
     apply zero_le _,
+end
+
+theorem merge_sort_complexity {α: Type} [has_encoding α μ]
+  (fcmp: α → α → Prop) [dcmp: decidable_rel fcmp]
+  {pcmp: program μ} (hcmp: ∀ (a b: α), pcmp.has_result (@encode _ _ _ _ _ (α × α) _ (a, b)) (encode (dcmp a b)))
+  {c: list α → ℕ}
+  (hcost: ∀ (l: list α) a b, a ∈ l → b ∈ l → pcmp.has_time_cost (encode (a, b)) (c l)):
+  complexity (runtime_model μ) (list.merge_sort fcmp) (λ l: list α, ((22 + (c l)) * l.length * (nat.clog 2 l.length) + 2)) :=
+begin
+  refine ⟨⟨(merge_sort pcmp), []⟩, _⟩,
+  apply complexity.witness.apply,
+  intro l,
+  apply complexity.witness.result,
+  apply program.unique_result',
+  simp only [runtime_model, complexity.model.apply],
+  apply program.has_trace.result',
+  apply merge_sort_has_trace fcmp hcmp,
+  apply merge_sort_result,
+  rw [runtime_model_apply, runtime_model_has_cost, build_arg],
+  apply merge_sort_time_cost fcmp hcmp (hcost l),
 end
 
 end encoding

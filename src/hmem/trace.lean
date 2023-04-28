@@ -404,6 +404,10 @@ theorem program.has_trace.result {p: program α} {m: memory α} {t: trace α}:
   p.has_trace m t → p.has_result m t.result :=
 λ h, thunk.iterate_step_of_iterate_step_over' (thunk.has_trace_result h)
 
+theorem program.has_trace.result' {p: program α} {m r: memory α} {t: trace α}:
+  p.has_trace m t → t.result = r → p.has_result m r :=
+λ htr hr, hr ▸ program.has_trace.result htr
+
 theorem program.has_trace.internal_cost {p: program α} {m: memory α} {tr: trace α}:
   p.has_trace m tr → p.internal_cost m (tr.steps + 1) :=
 begin

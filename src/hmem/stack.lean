@@ -536,6 +536,7 @@ theorem result_sound (p: program α) (inp: memory α) (h: halts_on p inp):
   has_result p inp (result p inp h) :=
 ⟨_, stack.get_result_value_of_exists (nat.find_spec h)⟩
 
+
 def has_time_cost (p: program α) (inp: memory α) (n: ℕ) :=
   ∃ outp, stack.step^[n] (stack.execution ⟨p, p, inp⟩ []) = stack.result outp
 
@@ -556,6 +557,10 @@ begin
     apply stack.result.inj,
     rwa [← stack.result_halt outp' x, ← h', ← function.iterate_add_apply, add_comm, ← hn, eq_comm] }
 end
+
+theorem unique_result' (p: program α) (inp outp: memory α) (h: halts_on p inp):
+  has_result p inp outp → result p inp h = outp :=
+unique_result (result_sound _ _ _)
 
 theorem time_cost_mono {p: program α} {inp: memory α} {n m: ℕ}:
   p.has_time_cost inp n → n ≤ m → p.has_time_cost inp m :=
