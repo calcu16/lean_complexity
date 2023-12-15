@@ -31,15 +31,17 @@ instance (m: Model): HMul ℕ m.Cost m.Cost := ⟨ Cost.scalar_mul m ⟩
 
 class Encoding (α: Type _) (Data: Type _) [Setoid Data] where
   encode: α → Data
-  inj: ∀ {a b}, encode a ≈ encode b → a = b
+  inj: ∀ a b, encode a ≈ encode b → a = b
 
 theorem Encoding.inj' {α: Type _} {Data: Type _} [s: Setoid Data] [en: Encoding α Data] {a b: α}:
   (⟦en.encode a⟧:Quotient s) = ⟦en.encode b⟧ → a = b :=
-en.inj ∘ Quotient.eq.mp
+en.inj _ _ ∘ Quotient.eq.mp
 
 theorem Encoding.inj_iff' {α: Type _} {Data: Type _} [s: Setoid Data] [en: Encoding α Data] {a b: α}:
   (⟦en.encode a⟧:Quotient s) = ⟦en.encode b⟧ ↔ a = b :=
 ⟨ Encoding.inj', λ h ↦ h ▸ rfl ⟩
+
+def encode {α: Type _} {Data: Type _} [Setoid Data] [en: Encoding α Data]: α → Data := en.encode
 
 inductive Witness (m: Model): {φ: Type _} → {θ: Type _} → m.Program → φ → θ → Prop
 | result {α: Type _} [en: Encoding α m.Result] (p: m.Program) (c: m.Cost) (ret: α)
