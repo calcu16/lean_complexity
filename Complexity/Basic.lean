@@ -1,4 +1,4 @@
-import Mathlib.Init.Algebra.Order
+import Mathlib.Algebra.Order.Monoid.Basic
 import Mathlib.Tactic
 
 namespace Complexity
@@ -15,12 +15,12 @@ structure Model where
 
 structure CostedModel extends Model where
   Cost: Type
-  [cost_add: CanonicallyOrderedAddMonoid Cost]
+  [cost_add: CanonicallyOrderedAddCommMonoid Cost]
   cost {p: Program} {d: Data}: (∃ r, has_result p d r) → Cost
 
 instance (m: Model): Setoid m.Data := m.data_equiv
 instance (m: Model): Setoid m.Result := m.result_equiv
-instance (m: CostedModel): CanonicallyOrderedAddMonoid m.Cost := m.cost_add
+instance (m: CostedModel): CanonicallyOrderedAddCommMonoid m.Cost := m.cost_add
 
 def Cost.scalar_mul (m: CostedModel): ℕ → m.Cost → m.Cost
 | 0, _ => 0

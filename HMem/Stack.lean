@@ -1,5 +1,6 @@
 import HMem.Memory
 import Mathlib.Logic.Function.Iterate
+import Mathlib.Data.Nat.Basic
 
 namespace HMem
 
