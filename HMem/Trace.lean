@@ -1,6 +1,5 @@
 import HMem.Stack
 import HMem.Computability.Basic
-import Mathlib.Logic.Relation
 
 namespace HMem
 open Complexity
@@ -55,10 +54,11 @@ theorem matchesThunk_hasResult
   | nil => cases ts with
     | nil => simpa using hm
     | cons => simp [matchesThunk] at hm
-  | cons i is ih => cases i with
-    | recurse =>
+  | cons i is ih =>
+    cases i
+    case recurse =>
       cases ts with
-      | nil => simp [matchesThunk] at hm
+      | nil => exact absurd hm not_false
       | cons te tr =>
         cases te
         case recurse =>
@@ -67,13 +67,33 @@ theorem matchesThunk_hasResult
           apply hrec (List.mem_cons_self _ _) rfl
           apply ih
           apply hm.right
-          intro a te htr harg
+          intro arg te hte htea
           apply hrec
-
-
-
-    | _ => sorry
-
+          exact List.mem_cons_of_mem _ hte
+          apply htea
+        exact absurd hm not_false
+        exact absurd hm not_false
+    case call =>
+      cases ts with
+      | nil => exact absurd hm not_false
+      | cons te tr =>
+        cases te
+        case call =>
+          unfold matchesThunk at hm
+          apply Stack.hasResult_call
+        exact absurd hm not_false
+        exact absurd hm not_false
+    case branch =>
+      cases ts with
+      | nil => exact absurd hm not_false
+      | cons te tr =>
+        cases te
+        case branch => sorry
+        exact absurd hm not_false
+        exact absurd hm not_false
+    sorry
+    sorry
+    sorry
 
 end TraceElem
 

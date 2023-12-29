@@ -212,6 +212,8 @@ theorem step_hasResult (h: hasResult s r): hasResult (step s) r :=
   | 0, h => ⟨0, congr_arg step h⟩
   | _+1, h => ⟨_, h⟩
 
+theorem step_of_hasResult (h: hasResult (step s) r): hasResult s r := h.elim λ _ h ↦ ⟨_ + 1, h⟩
+
 theorem istep_hasResult: {n: ℕ} → {s: Stack} →
     (hasResult s r) →
     hasResult (step^[n] s) r
@@ -237,6 +239,13 @@ theorem hasResult_of_recurse
   h₁.elim λ _ h₁ ↦ (istep_return_exists_of_result h₁).elim
     λ _ h₁ ↦ h₁.elim λ _ h₁ ↦ h₁.elim λ _ h₁ ↦
     istep_hasResult' h₀ (istep_recurse_return h₁)
+
+theorem hasResult_call
+    (h₀: hasResult (execution ⟨m.getms src, func, func⟩ []) r₀)
+    (h₁: hasResult (execution ⟨m.setms dst r₀, is, p⟩ cs) r₁):
+    hasResult (execution ⟨m, .call dst src func::is, p⟩ cs) r₁ :=
+  h₀.elim λ _ h₀ ↦ h₁.elim λ _ h₁ ↦
+    ⟨ _, istep_call_result h₀ h₁ ⟩
 
 theorem hasResult_of_call
     (h₀: hasResult (execution ⟨m, .call dst src func::is, p⟩ cs) r₀)
