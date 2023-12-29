@@ -20,7 +20,7 @@ inductive Instruction
 | vop {N: ℕ} (op: (Fin N → Bool) → Bool) (dst: Source) (src: Fin N → Source)
 | mop (op: Instruction.MemoryOperation) (dst src: Source)
 | clear (dst: Source)
-| ite {N: ℕ} (cond: (Fin N → Bool) → Bool) (src: Fin N → Source) (branch: List Instruction)
+| branch {N: ℕ} (cond: (Fin N → Bool) → Bool) (src: Fin N → Source) (branch: List Instruction)
 | call (dst src: Source) (func: List Instruction)
 | recurse (dst src: Source)
 
@@ -29,9 +29,26 @@ instance: Inhabited Instruction where
 
 def Program: Type _ := List Instruction
 
+namespace Instruction
+
+inductive Step
+| op (value: Memory)
+| branch (cond: Option (Program))
+| call (func: Option (Program)) (dst: List Bool) (arg: Memory)
+
+def step: Instruction → Memory → Step
+| .vop op dst src, m => .op (m.setvs dst (op (m.getvs ∘ src)))
+| .mop op dst src, m => .op ((m.setms src (m.mop op src dst)).setms dst (m.getms src))
+| .clear dst, m => .op (m.setms dst 0)
+| .branch cond src is, m => .branch (ite (cond (m.getvs ∘ src)) (some is) none)
+| .call dst src func, m => .call (some func) (dst.get m) (m.getms src)
+| .recurse dst src, m => .call none (dst.get m) (m.getms src)
+
+end Instruction
+
 structure Thunk where
   state: Memory
-  current: Program
+  current: List Instruction
   function: Program
 
 namespace Thunk
@@ -39,20 +56,6 @@ namespace Thunk
 theorem congr {s₀ s₁: Memory} {c₀ c₁ f₀ f₁: Program}
     (hs: s₀ = s₁) (hc: c₀ = c₁) (hf: f₀ = f₁):
   Thunk.mk s₀ c₀ f₀ = ⟨s₁, c₁, f₁⟩ := hs ▸ hc ▸ hf ▸ rfl
-
-inductive Step
-| thunk (value: Thunk)
-| result (value: Memory)
-| call (func: Option (Program)) (arg: Memory) (caller: Thunk) (as: List Bool)
-
-def step: Thunk → Step
-| ⟨m, [], _⟩ => .result m
-| ⟨m, .vop op dst src::is, p⟩ => .thunk ⟨m.setvs dst (op (m.getvs ∘ src)), is, p⟩
-| ⟨m, .mop op dst src::is, p⟩ => .thunk ⟨(m.setms src (m.mop op src dst)).setms dst (m.getms src), is, p⟩
-| ⟨m, .clear dst::is, p⟩ => .thunk ⟨m.setms dst 0, is, p⟩
-| ⟨m, .ite cond src is'::is, p⟩ => .thunk ⟨m, ite (cond (m.getvs ∘ src)) is' is, p⟩
-| ⟨m, .call dst src func ::is, p⟩ => .call (some func) (m.getms src) ⟨m, is, p⟩ (dst.get m)
-| ⟨m, .recurse dst src::is, p⟩ => .call none (m.getms src) ⟨m, is, p⟩ (dst.get m)
 
 def set_result: Thunk → List Bool → Memory → Thunk
 | ⟨m, is, p⟩, as, m' => ⟨m.setmp as m', is, p⟩
@@ -67,13 +70,13 @@ inductive Stack
 
 namespace Stack
 def step: Stack → Stack
-| execution f caller => match f.step with
-  | .thunk t => execution t caller
-  | .result m => match caller with
-    | [] => result m
-    | c::cs => execution (c.fst.set_result c.snd m) cs
-  | .call func arg ret as =>
-    execution ((func.getD f.function).call arg) ((ret.set_result as 0, as)::caller)
+| execution ⟨m, i::is, p⟩ caller => match i.step m with
+  | .op m' => execution ⟨m', is, p⟩ caller
+  | .branch is' => execution ⟨m, is'.getD is, p⟩ caller
+  | .call func dst arg =>
+    execution ((func.getD p).call arg) ((⟨m.setmp dst 0, is, p⟩, dst)::caller)
+| execution ⟨m, [], _⟩ (c::cs) => execution (c.fst.set_result c.snd m) cs
+| execution ⟨m, [], _⟩ [] => result m
 | result m => result m
 
 theorem step_result: step (result m) = result m := rfl
@@ -82,8 +85,8 @@ theorem istep_result_le (hle: n₀ ≤ n₁) (hr: step^[n₀] thunk = result m):
   Nat.sub_add_cancel hle ▸ Function.iterate_add_apply _ _ _ _ ▸ hr.symm ▸ istep_result
 theorem return_of_step_result: step (execution ⟨m, is, p⟩ cs) = result r → m = r ∧ is = [] ∧ cs = [] := by
   cases is
-  { cases cs <;> simp [step, Thunk.step] }
-  case cons i is => cases i <;> simp [step, Thunk.step]
+  { cases cs <;> simp [step, Instruction.step] }
+  case cons i is => cases i <;> simp [step, Instruction.step]
 
 theorem return_of_step_result': {t: Thunk} → step (execution t cs) = result r → execution t cs = execution ⟨r, [], t.function⟩ []
 | ⟨_, _, _⟩, h => congrArg₂ _
@@ -119,13 +122,13 @@ theorem istep_eq_execution: (n: ℕ) → {s: Stack} → {t: Thunk} → {cs: List
 theorem step_execution_append: step (.execution t₀ cs₀) = .execution t₁ cs₁ →
     step (.execution t₀ (cs₀ ++ cs)) = .execution t₁ (cs₁ ++ cs) := by
   cases t₀ with | _ m c p =>
-  cases c; { cases cs₀ <;> simp [step, Thunk.step] }
+  cases c; { cases cs₀ <;> simp [step, Instruction.step] }
   case cons hd _ =>
     cases t₁
     cases hd
-    case call|recurse => simpa [step, Thunk.step, and_assoc]
+    case call|recurse => simpa [step, Instruction.step, and_assoc]
       using λ hm hcs ↦ ⟨ hm, congrArg₂ List.append hcs rfl ⟩
-    all_goals simp [step, Thunk.step, and_assoc]
+    all_goals simp [step, Instruction.step, and_assoc]
 
 theorem istep_execution_append:
     step^[n] (.execution t₀ cs₀) = .execution t₁ cs₁ →
@@ -220,6 +223,13 @@ theorem istep_hasResult'
     (heq: step^[n] s₀ = s₁):
     hasResult s₁ r := heq ▸ istep_hasResult h
 
+theorem hasResult_recurse
+    (h₀: hasResult (execution ⟨m.getms src, p, p⟩ []) r₀)
+    (h₁: hasResult (execution ⟨m.setms dst r₀, is, p⟩ cs) r₁):
+    hasResult (execution ⟨m, .recurse dst src::is, p⟩ cs) r₁ :=
+  h₀.elim λ _ h₀ ↦ h₁.elim λ _ h₁ ↦
+    ⟨ _, istep_recurse_result h₀ h₁ ⟩
+
 theorem hasResult_of_recurse
     (h₀: hasResult (execution ⟨m, .recurse dst src::is, p⟩ cs) r₀)
     (h₁: hasResult (execution ⟨m.getms src, p, p⟩ []) r₁):
@@ -268,9 +278,12 @@ theorem hasResult_execution: hasResult (.execution t cs) = hasResult (.step (.ex
   hasResult_execution
 
 @[simp] theorem hasResult_ite:
-    hasResult (.execution ⟨m, .ite c src is'::is, p⟩ cs) =
+    hasResult (.execution ⟨m, .branch c src is'::is, p⟩ cs) =
     hasResult (.execution ⟨m, ite (c (m.getvs ∘ src)) is' is, p⟩ cs) :=
-  hasResult_execution
+  hasResult_execution.trans (congrArg _ (flip (congrArg₂ execution) rfl
+    (match c (Memory.getvs m ∘ src) with
+    | true => rfl
+    | false => rfl)))
 
 def getResult: Stack → Memory
 | result m => m

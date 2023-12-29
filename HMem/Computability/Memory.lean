@@ -19,7 +19,7 @@ instance: Computable Encoding.Model (Function.uncurry Memory.getm) where
 
 instance: Computable Encoding.Model (Function.uncurry Memory.getmp) where
   program := [
-    .ite (λ (op:Fin 1 → Bool) ↦ op 0) (λ _ ↦ .imm true .nil) [
+    .branch (λ (op:Fin 1 → Bool) ↦ op 0) (λ _ ↦ .imm true .nil) [
       .mop .MOVE (.imm false .nil) (.imm false (.idx (.imm true (.imm false .nil)) .nil)),
       .mop .MOVE (.imm true .nil) (.imm true (.imm true .nil)),
       .recurse .nil .nil

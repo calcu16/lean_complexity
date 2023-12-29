@@ -136,7 +136,7 @@ instance: One Memory where
   one := ⟦.node true .leaf .leaf⟧
 
 instance: NeZero (1:Memory) where
-  out h := absurd (congrArg _Memory.getv (Quotient.exact h)) Bool.noConfusion
+  out h := Bool.noConfusion (congrArg _Memory.getv (Quotient.exact h))
 
 @[simp] theorem eq_zero_symm {m: Memory}: (0 = m) = (m = 0) := iff_iff_eq.mp ⟨ Eq.symm, Eq.symm ⟩
 

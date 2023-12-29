@@ -39,7 +39,7 @@ def encodeProgram: List Instruction → Memory
   | .mop op dst src => .mk false (.mk true (encode op) 0) (.mk false (encode dst) (encode src))
   | .recurse dst src => .mk true (.mk false (encode dst) (encode src)) 0
   | .call dst src func => .mk true (.mk false (encode dst) (encode src)) (.mk true (encodeProgram func) 0)
-  | .ite cond src branch => .mk true (.mk true (encode cond) 0) (.mk true (encode src) (encodeProgram branch))
+  | .branch cond src branch => .mk true (.mk true (encode cond) 0) (.mk true (encode src) (encodeProgram branch))
 ) (encodeProgram is)
 
 def encodeProgram_inj {is₀ is₁: List Instruction}: encodeProgram is₀ = encodeProgram is₁ → is₀ = is₁ := by
@@ -51,7 +51,7 @@ def encodeProgram_inj {is₀ is₁: List Instruction}: encodeProgram is₀ = enc
         encodeProgram, and_assoc,
         Iff.intro (@encodeProgram_inj tl₀ tl₁) (λ h ↦ h ▸ rfl)]
         using λ hN hopt hdst _ hsrc htl ↦ ⟨ hN, hopt, hdst, hsrc, htl ⟩
-    case ite.ite _ _ _ branch₀ _ _ _ branch₁ =>
+    case branch.branch _ _ _ branch₀ _ _ _ branch₁ =>
       simpa [
         encodeProgram, and_assoc,
         Iff.intro (@encodeProgram_inj tl₀ tl₁) (λ h ↦ h ▸ rfl),
@@ -74,6 +74,16 @@ instance: Encoding Program Memory where
   encode := encode (α := List Instruction)
   inj := Encoding.inj (α := List Instruction)
 
+instance: Encoding Instruction.Step Memory where
+  encode
+  | .op value => .mk false (encode value) 0
+  | .branch value => .mk false (encode value) 1
+  | .call func dst arg => .mk true (.mk false (encode func)  (encode dst)) (encode arg)
+  inj a b := by
+    cases a <;> cases b
+    case call.call => simpa using λ hf hd ha => ⟨hf, hd, ha⟩
+    all_goals simp
+
 instance: Encoding Thunk Memory where
   encode
   | .mk f c s => .mk false (.mk false (encode f) (encode c)) (encode s)
@@ -81,15 +91,6 @@ instance: Encoding Thunk Memory where
   | .mk _ _ _, .mk _ _ _ => by
     simpa using λ hf hc hs ↦ ⟨ hf, hc, hs ⟩
 
-instance: Encoding Thunk.Step Memory where
-  encode
-  | .thunk value => .mk false (encode value) 0
-  | .result value => .mk true value 0
-  | .call func arg caller as => .mk true (.mk false (encode func) (encode arg)) (.mk true (encode caller) (encode as))
-  inj a b := by
-    cases a <;> cases b
-    case call.call => simpa using λ hf ha hc h => ⟨hf, ha, hc, h⟩
-    all_goals simp
 
 end Encoding
 end HMem
