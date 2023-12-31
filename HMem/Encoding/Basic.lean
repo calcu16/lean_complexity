@@ -40,7 +40,6 @@ instance: Complexity.Encoding Bool Memory where
   encode b := .mk b 0 0
   inj _ _ := by simp
 
-
 @[simp] theorem encodeBool {b: Bool}: (encode b:Memory) = .mk b 0 0 := rfl
 
 instance [Encoding α Memory] [Encoding β Memory]: Encoding (α × β) Memory where

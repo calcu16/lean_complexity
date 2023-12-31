@@ -127,6 +127,9 @@ theorem out_sound {m: Memory}: ⟦m.out⟧ = m :=
   (Quotient.exists_rep m).elim λ _ h ↦ h ▸
     Quotient.sound (_Memory.canonical_idempotent.trans out_exact)
 
+theorem out_inj {m₀ m₁: Memory} (h: out m₀ = out m₁): m₀ = m₁ :=
+  @out_sound m₀ ▸ @out_sound m₁ ▸ congrArg Quotient.mk' h
+
 def mk (v: Bool) (f t: Memory): Memory := ⟦.node v f.out t.out⟧
 
 instance: Zero Memory where
@@ -137,6 +140,11 @@ instance: One Memory where
 
 instance: NeZero (1:Memory) where
   out h := Bool.noConfusion (congrArg _Memory.getv (Quotient.exact h))
+
+instance: DecidableEq Memory := λ a b ↦
+  if h:a.out = b.out
+  then Decidable.isTrue (out_inj h)
+  else Decidable.isFalse (h ∘ congrArg _)
 
 @[simp] theorem eq_zero_symm {m: Memory}: (0 = m) = (m = 0) := iff_iff_eq.mp ⟨ Eq.symm, Eq.symm ⟩
 

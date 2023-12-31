@@ -6,40 +6,40 @@ import Complexity.Basic
 
 namespace HMem.Computability
 
-instance: Computable Encoding.Model Memory.getv where
-  program := [
-    .clear (.imm false .nil),
-    .clear (.imm true .nil)]
-  has_result a := by simp
+instance: HasTrace Memory.getv where
+  program := .build [
+    .op (.const (.imm false .nil) 0),
+    .op (.const (.imm true .nil) 0)]
+  trace _ := []
+  prop.correct | _ => by simp
+  prop.consistent | _, _ => by simp
+  prop.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
 
+instance: HasTrace (Function.uncurry Memory.getm) where
+  program := .build [ .op (.mop .MOVE .nil (.imm false (.idx (.imm true .nil) .nil))) ]
+  trace _ := []
+  prop.correct | (_, _) => by simp
+  prop.consistent | _, _ => by simp
+  prop.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
 
-instance: Computable Encoding.Model (Function.uncurry Memory.getm) where
-  program := [ .mop .MOVE .nil (.imm false (.idx (.imm true .nil) .nil)) ]
-  has_result | (m, b) => by simp
-
-instance: Computable Encoding.Model (Function.uncurry Memory.getmp) where
-  program := [
-    .branch (λ (op:Fin 1 → Bool) ↦ op 0) (λ _ ↦ .imm true .nil) [
-      .mop .MOVE (.imm false .nil) (.imm false (.idx (.imm true (.imm false .nil)) .nil)),
-      .mop .MOVE (.imm true .nil) (.imm true (.imm true .nil)),
+instance: HasTrace (Function.uncurry Memory.getmp) where
+  program := .build [
+    .branch (.ifTrue (λ (op:Fin 1 → Bool) ↦ op 0) (λ _ ↦ .imm true .nil)) (.build [
+      .op (.mop .MOVE (.imm false .nil) (.imm false (.idx (.imm true (.imm false .nil)) .nil))),
+      .op (.mop .MOVE (.imm true .nil) (.imm true (.imm true .nil))),
       .recurse .nil .nil
-    ],
-    .mop .MOVE .nil (.imm false .nil)
+    ]),
+    .op (.mop .MOVE .nil (.imm false .nil))
   ]
-  has_result
-  | (m, bs) => by
-    induction bs generalizing m with
-    | nil => simp
-    | cons hd tl ih => simpa using ih (m.getm hd)
-
-
--- instance: Computable Encoding.Model (Function.uncurry Memory.getvp) where
---   program := [
---     .call .nil .nil (getProgram (Function.uncurry Memory.getmp)),
---     .call .nil .nil (getProgram Memory.getv)
---   ]
---   has_result
---   | (m, bs) => by
---     simp
+  trace
+  | (_, []) => [ .branch false]
+  | (m, a::as) => [ .branch true, .recurse (m.getm a, as)]
+  prop.correct
+  | (_, as) => by
+    cases as <;> simp [TraceElem.matchesThunk, TraceElem.matchesProgram, BranchInstruction.apply]
+  prop.consistent
+  | (_, as), (_, bs) => by
+    cases as <;> cases bs <;> simp
+  prop.wellFounded := sorry
 
 end HMem.Computability
