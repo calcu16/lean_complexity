@@ -24,6 +24,10 @@ instance: Encoding Source Memory where
   encode := encodeSource
   inj _ _ := encodeSource_inj
 
+@[simp] theorem encodeSource_nil: (encode Source.nil:Memory) = 0 := rfl
+@[simp] theorem encodeSource_imm: (encode (Source.imm hd tl):Memory) = .mk true (.mk false (encode hd) 0) (encode tl) := rfl
+@[simp] theorem encodeSource_idx: (encode (Source.idx hd tl):Memory) = .mk true (.mk true (encode hd) 0) (encode tl) := rfl
+
 instance: Encoding OpInstruction.MemoryOperation Memory where
   encode
   | .COPY => 0

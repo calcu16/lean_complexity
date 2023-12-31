@@ -60,6 +60,12 @@ def matchesThunk (tr: List (TraceElem f)) (t: Thunk): α → Prop :=
     (m.getms src = encode arg ∧ matchesThunk tr ⟨m.setms dst (encode (fc arg)), is, p⟩ a) := by
   simp [matchesThunk, matchesProgram]
 
+
+-- @[simp] theorem matchesThunk_subroutine' {tr: List (TraceElem f)} [Encoding γ Memory] [Encoding δ Memory] {fc: γ → δ} [hc: Computable Encoding.Model fc]:
+--     matchesThunk (.subroutine fc₀ arg::tr) ⟨m, .subroutine dst src (Encoding.getProgram fc₁) is, p⟩ a =
+--     (m.getms src = encode arg ∧ matchesThunk tr ⟨m.setms dst (encode (fc arg)), is, p⟩ a) := by
+--   simp [matchesThunk, matchesProgram]
+
 inductive Consistent: List (TraceElem f) → List (TraceElem f) → Prop
 | nil : Consistent [] []
 | branch_ne {b₀ b₁: Bool} (h: b₀ ≠ b₁) (tr₀ tr₁: List (TraceElem f)):
@@ -159,31 +165,41 @@ def Trace {α: Type _} {β: Type _} [Encoding α Memory] [Encoding β Memory] (f
 namespace Trace
 variable {f: α → β}
 
-@[simp] def recursiveArgOf (tr: Trace f) (a₀ a₁: α): Prop :=
-  ∃ te ∈ (tr a₁), te.hasRecursiveArg a₀
+def descends (tr: List (TraceElem f)) (a: α) (sz: α → ℕ): Prop := ∀ te ∈ tr, ∀ {b}, te.hasRecursiveArg b → sz b < sz a
 
-structure MatchesProgram (tr: Trace f) (p: Program): Prop where
+@[simp] theorem descends_nil: descends (f := f) [] a sz := List.forall_mem_nil _
+@[simp] theorem descends_branch {tr: List (TraceElem f)}:
+    descends (.branch b::tr) a sz = descends tr a sz := by simp[descends]
+@[simp] theorem descends_subroutine {tr: List (TraceElem f)} {γ: Type _} [Encoding γ Memory] {δ: Type _} [Encoding δ Memory] {fc: γ → δ} {arg: γ}:
+    descends (.subroutine fc arg::tr) a sz = descends tr a sz := by simp[descends]
+@[simp] theorem descends_recurse {tr: List (TraceElem f)}:
+    descends (.recurse arg::tr) a sz = (sz arg < sz a ∧ descends tr a sz) := by simp[descends]
+
+
+structure MatchesProgram (tr: Trace f) (p: Program) (sz: α → ℕ): Prop where
   correct: ∀ a, TraceElem.matchesThunk (tr a) ⟨encode a, p, p⟩ a
   consistent: ∀ a b, TraceElem.Consistent (tr a) (tr b)
-  wellFounded: WellFounded tr.recursiveArgOf
+  wellFounded: ∀ a, descends (tr a) a sz
 
 namespace MatchesProgram
 
 variable {tr: Trace f} {p: Program}
 
 @[simp] theorem MatchesProgram_def:
-  tr.MatchesProgram p =
+  tr.MatchesProgram p sz =
   ((∀ a, TraceElem.matchesThunk (tr a) ⟨encode a, p, p⟩ a) ∧
   (∀ a b, TraceElem.Consistent (tr a) (tr b)) ∧
-  WellFounded tr.recursiveArgOf) :=
+  ∀ a, descends (tr a) a sz) :=
   eq_iff_iff.mpr
   ⟨ λ h ↦ ⟨h.correct, h.consistent, h.wellFounded⟩,
     λ h ↦ ⟨h.left, h.right.left, h.right.right⟩ ⟩
 
-theorem hasResult (h: MatchesProgram tr p) (a: α): p.hasResult (encode a) (encode (f a)) :=
-  h.wellFounded.induction a λ _ ih ↦
-    TraceElem.matchesThunk_hasResult (h.correct _)
-      λ hmem hrec ↦ ih _ ⟨_, hmem, hrec⟩
+theorem hasResult' (h: MatchesProgram tr p sz) {n: ℕ}: ∀ (a), sz a = n → p.hasResult (encode a) (encode (f a)) :=
+  Nat.strong_induction_on n λ _ ih _ ha ↦
+    TraceElem.matchesThunk_hasResult (h.correct _) λ hte hrec ↦
+      ih _ (lt_of_lt_of_eq (h.wellFounded _ _ hte hrec) ha) _ rfl
+
+theorem hasResult (h: MatchesProgram tr p sz) (a: α): p.hasResult (encode a) (encode (f a)) := hasResult' h a rfl
 
 end MatchesProgram
 
@@ -192,6 +208,7 @@ end Trace
 class HasTrace (f: α → β) [Encoding α Memory] [Encoding β Memory] where
   program: Program
   trace: Trace f
-  sound: trace.MatchesProgram program
+  height: α → ℕ
+  sound: trace.MatchesProgram program height
 
 end HMem

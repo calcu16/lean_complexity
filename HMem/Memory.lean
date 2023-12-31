@@ -1,13 +1,14 @@
 import Mathlib.Init.ZeroOne
 import Mathlib.Algebra.NeZero
 import Mathlib.Data.Quot
+import Mathlib.Data.Nat.Bits
 
 namespace HMem
 
 inductive _Memory
 | leaf
 | node (value: Bool) (t f: _Memory)
-deriving DecidableEq, Inhabited
+deriving DecidableEq, Inhabited, Repr
 
 namespace _Memory
 def getv: _Memory → Bool
@@ -130,6 +131,8 @@ theorem out_sound {m: Memory}: ⟦m.out⟧ = m :=
 theorem out_inj {m₀ m₁: Memory} (h: out m₀ = out m₁): m₀ = m₁ :=
   @out_sound m₀ ▸ @out_sound m₁ ▸ congrArg Quotient.mk' h
 
+instance: Repr Memory := ⟨ Repr.reprPrec ∘ Memory.out ⟩
+
 def mk (v: Bool) (f t: Memory): Memory := ⟦.node v f.out t.out⟧
 
 instance: Zero Memory where
@@ -238,8 +241,17 @@ inductive Source
 | nil
 | imm (hd: Bool) (tl: Source)
 | idx (hd tl: Source)
+deriving Repr
 
 namespace Source
+def height: Source → ℕ
+| nil => 0
+| imm _ tl => height tl + 1
+| idx hd tl => max (height hd) (height tl) + 1
+@[simp] theorem height_imm_tl: tl.height < (imm hd tl).height := Nat.lt_succ_self _
+@[simp] theorem height_idx_hd: hd.height < (idx hd tl).height := Nat.lt_succ_of_le (le_max_left _ _)
+@[simp] theorem height_idx_tl: tl.height < (idx hd tl).height := Nat.lt_succ_of_le (le_max_right _ _)
+
 def get: Source → Memory → List Bool
 | nil, _ => []
 | imm hd tl, m => hd::(tl.get m)
@@ -250,6 +262,28 @@ def get: Source → Memory → List Bool
 @[simp] theorem get_idx: (idx hd tl).get m = m.getvp (hd.get m)::(tl.get m) := rfl
 
 def convert (f: Memory → List Bool → β) (m: Memory) (s: Source): β := f m (s.get m)
+
+@[simp] def succ': Source → (Bool × Source)
+| nil => (true, nil)
+| idx hd tl => (true, idx hd tl)
+| imm hd tl => match succ' tl, hd with
+  | (false, tl), hd => (false, imm hd tl)
+  | (true, tl), false => (false, imm true tl)
+  | (true, tl), true =>  (true, imm false tl)
+
+@[simp] def succ (s: Source): Source :=
+  match s.succ' with
+  | (false, s) => s
+  | (true, tl) => .imm false tl
+
+def fromNat: ℕ → Source
+| 0 => .nil
+| (n+1) => (fromNat n).succ
+
+instance: OfNat Source n := ⟨ fromNat n ⟩
+@[simp] theorem ofNatZero: (OfNat.ofNat 0:Source) = .nil := rfl
+@[simp] theorem ofNatSucc: (OfNat.ofNat (n+1):Source) = succ (OfNat.ofNat n) := rfl
+
 end Source
 
 namespace Memory

@@ -176,4 +176,8 @@ def getProgram [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (
 --   cost := Program.timeCost _
 
 end Encoding
+
+@[simp] def Program.subroutine' (dst src: Source) [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (f: α → β) [h: Computable Encoding.Model f]: Program → Program :=
+  subroutine dst src (Encoding.getProgram f)
+
 end HMem

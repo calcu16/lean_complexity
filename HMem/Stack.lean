@@ -1,6 +1,7 @@
 import HMem.Memory
 import Mathlib.Logic.Function.Iterate
 import Mathlib.Data.Nat.Basic
+import Mathlib.Data.Fin.Basic
 
 def Sum.reduce: α ⊕ α → α
 | Sum.inl a => a
@@ -30,10 +31,10 @@ inductive MemoryOperation
 | SWAP
 end OpInstruction
 
-def Memory.mop (m: Memory): OpInstruction.MemoryOperation → Source → Source → Memory
-| .COPY, dst, _ => m.getms dst
+@[simp] def Memory.mop (m: Memory): OpInstruction.MemoryOperation → Source → Source → Memory
+| .COPY, _, src => m.getms src
 | .MOVE, _, _ => 0
-| .SWAP, _, src => m.getms src
+| .SWAP, dst, _ => m.getms dst
 
 inductive OpInstruction
 | vop {N: ℕ} (op: (Fin N → Bool) → Bool) (dst: Source) (src: Fin N → Source)
@@ -42,7 +43,7 @@ inductive OpInstruction
 
 @[simp] def OpInstruction.apply: OpInstruction → Memory → Memory
 | vop op dst src, m => m.setvs dst (op (m.getvs ∘ src))
-| mop op dst src, m => (m.setms src (m.mop op src dst)).setms dst (m.getms src)
+| mop op dst src, m => (m.setms src (m.mop op dst src)).setms dst (m.getms src)
 | const dst val, m => m.setms dst val
 
 inductive BranchInstruction
@@ -64,9 +65,21 @@ inductive Program
 | recurse (dst src: Source) (next: Program)
 
 namespace Program
+@[simp] def build: List (Program → Program) → Program
+| [] => .exit
+| p::ps => p (build ps)
+
 @[match_pattern] def call (dst src: Source): Option Program → Program → Program
 | some func, next => subroutine dst src func next
 | none, next => recurse dst src next
+
+@[simp] def setv (dst: Source) (b: Bool): Program → Program := op (.vop (λ _ ↦ b) dst finZeroElim)
+@[simp] def setm (dst: Source) (src: Memory): Program → Program := op (.const dst src)
+@[simp] def copyv (dst src: Source): Program → Program := op (.vop (λ f ↦ f 0) dst (λ (_: Fin 1) ↦ src))
+@[simp] def copy (dst src: Source): Program → Program := op (.mop .COPY dst src)
+@[simp] def move (dst src: Source): Program → Program := op (.mop .MOVE dst src)
+@[simp] def swap (dst src: Source): Program → Program := op (.mop .SWAP dst src)
+@[simp] def ifv (src: Source): List (Program → Program) → Program → Program := branch (.ifTrue (λ f ↦ f 0) (λ (_: Fin 1) ↦ src)) ∘ build
 
 def subroutine_def: subroutine dst src func next = call dst src (some func) next := rfl
 def recurse_def: recurse dst src next = call dst src none next := rfl
