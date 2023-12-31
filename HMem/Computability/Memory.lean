@@ -11,16 +11,29 @@ instance: HasTrace Memory.getv where
     .op (.const (.imm false .nil) 0),
     .op (.const (.imm true .nil) 0)]
   trace _ := []
-  prop.correct | _ => by simp
-  prop.consistent | _, _ => by simp
-  prop.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
+  sound.correct | _ => by simp
+  sound.consistent | _, _ => by simp
+  sound.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
 
 instance: HasTrace (Function.uncurry Memory.getm) where
   program := .build [ .op (.mop .MOVE .nil (.imm false (.idx (.imm true .nil) .nil))) ]
   trace _ := []
-  prop.correct | (_, _) => by simp
-  prop.consistent | _, _ => by simp
-  prop.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
+  sound.correct | (_, _) => by simp
+  sound.consistent | _, _ => by simp
+  sound.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
+
+instance [Computable Encoding.Model (Function.uncurry Memory.getmp)] [Computable Encoding.Model Memory.getv]: HasTrace (Function.uncurry Memory.getvp) where
+  program := .build [
+    .subroutine .nil .nil (Encoding.getProgram (Function.uncurry Memory.getmp)),
+    .subroutine .nil .nil (Encoding.getProgram Memory.getv)
+  ]
+  trace | (m, as) => [
+    .subroutine (Function.uncurry Memory.getmp) (m, as),
+    .subroutine Memory.getv (m.getmp as),
+   ]
+  sound.correct | (_, as) => by simp
+  sound.consistent | (_, as), (_, bs) => by simp
+  sound.wellFounded := ⟨ λ | _ => Acc.intro _ λ | _ => by simp ⟩
 
 instance: HasTrace (Function.uncurry Memory.getmp) where
   program := .build [
@@ -34,12 +47,8 @@ instance: HasTrace (Function.uncurry Memory.getmp) where
   trace
   | (_, []) => [ .branch false]
   | (m, a::as) => [ .branch true, .recurse (m.getm a, as)]
-  prop.correct
-  | (_, as) => by
-    cases as <;> simp [TraceElem.matchesThunk, TraceElem.matchesProgram, BranchInstruction.apply]
-  prop.consistent
-  | (_, as), (_, bs) => by
-    cases as <;> cases bs <;> simp
-  prop.wellFounded := sorry
+  sound.correct | (_, as) => by cases as <;> simp
+  sound.consistent | (_, as), (_, bs) => by cases as <;> cases bs <;> simp
+  sound.wellFounded := sorry
 
 end HMem.Computability

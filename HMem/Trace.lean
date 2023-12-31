@@ -36,12 +36,29 @@ def matchesThunk (tr: List (TraceElem f)) (t: Thunk): α → Prop :=
   matchesProgram t.current tr t.state t.function
 
 @[simp] theorem matchesThunk_exit:
-    matchesThunk (f := f) [] ⟨m, .exit, p⟩ a = (m = encode (f a)) := by
-  simp [matchesThunk, matchesProgram]
+    matchesThunk (f := f) [] ⟨m, .exit, p⟩ a = (m = encode (f a)) := rfl
 
 @[simp] theorem matchesThunk_vop {tr: List (TraceElem f)}:
     matchesThunk tr ⟨m, .op op is, p⟩ =
-    matchesThunk tr ⟨op.apply m, is, p⟩ := by simp [matchesThunk, matchesProgram]
+    matchesThunk tr ⟨op.apply m, is, p⟩ := rfl
+
+@[simp] theorem matchesThunk_branch_pos {tr: List (TraceElem f)}:
+    matchesThunk (.branch true::tr) ⟨m, .branch op pos neg, p⟩ a =
+    (op.apply m = true ∧ matchesThunk tr ⟨m, pos, p⟩ a) := rfl
+
+@[simp] theorem matchesThunk_branch_neg {tr: List (TraceElem f)}:
+    matchesThunk (.branch false::tr) ⟨m, .branch op pos neg, p⟩ a =
+    (op.apply m = false ∧ matchesThunk tr ⟨m, neg, p⟩ a) := rfl
+
+@[simp] theorem matchesThunk_recurse {tr: List (TraceElem f)}:
+    matchesThunk (.recurse arg::tr) ⟨m, .recurse dst src is, p⟩ a =
+    (m.getms src = encode arg ∧ matchesThunk tr ⟨m.setms dst (encode (f arg)), is, p⟩ a) := by
+  simp [matchesThunk, matchesProgram]
+
+@[simp] theorem matchesThunk_subroutine {tr: List (TraceElem f)} [Encoding γ Memory] [Encoding δ Memory] {fc: γ → δ} [hc: Computable Encoding.Model fc]:
+    matchesThunk (.subroutine fc arg::tr) ⟨m, .subroutine dst src (Encoding.getProgram fc) is, p⟩ a =
+    (m.getms src = encode arg ∧ matchesThunk tr ⟨m.setms dst (encode (fc arg)), is, p⟩ a) := by
+  simp [matchesThunk, matchesProgram]
 
 inductive Consistent: List (TraceElem f) → List (TraceElem f) → Prop
 | nil : Consistent [] []
@@ -70,6 +87,10 @@ inductive Consistent: List (TraceElem f) → List (TraceElem f) → Prop
     Consistent (f := f) (.recurse arg₀::tr₀) (.recurse arg₁::tr₁) = Consistent tr₀ tr₁ := eq_iff_iff.mpr ⟨
       λ | recurse _ _ h => h,
       Consistent.recurse _ _ ⟩
+@[simp] theorem Consistent.subroutine_def {γ: Type _} [Encoding γ Memory] {δ: Type _} [Encoding δ Memory] {fc: γ → δ} {arg₀ arg₁: γ}:
+    Consistent (.subroutine fc arg₀::tr₀) (.subroutine fc arg₁::tr₁) = Consistent tr₀ tr₁ := eq_iff_iff.mpr ⟨
+      λ | subroutine _ _ _ h => h,
+      Consistent.subroutine _ _ _ ⟩
 
 @[simp] def hasRecursiveArg: TraceElem f → α → Prop
 | recurse arg, a => arg = a
@@ -171,6 +192,6 @@ end Trace
 class HasTrace (f: α → β) [Encoding α Memory] [Encoding β Memory] where
   program: Program
   trace: Trace f
-  prop: trace.MatchesProgram program
+  sound: trace.MatchesProgram program
 
 end HMem

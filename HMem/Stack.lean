@@ -53,6 +53,8 @@ def BranchInstruction.apply: BranchInstruction → Memory → Bool
 | ifTrue cond src, m => (cond (m.getvs ∘ src))
 | ifNull src, m => m.getms src = 0
 
+@[simp] def BranchInstruction.apply_ifTrue_def: (ifTrue c src).apply m = (c (m.getvs ∘ src)) := rfl
+@[simp] def BranchInstruction.apply_ifNull_def: (ifNull src).apply m = decide (m.getms src = 0) := rfl
 
 inductive Program
 | exit

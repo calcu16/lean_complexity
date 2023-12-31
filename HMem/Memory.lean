@@ -230,6 +230,8 @@ def setvp (m: Memory) (bs: List Bool): Bool → Memory := m.setmp bs ∘ (m.getm
 @[simp] theorem setvp_nil: setvp m [] v = m.setv v := rfl
 @[simp] theorem setvp_cons: setvp m (b::bs) v = m.setm b ((m.getm b).setvp bs v) := rfl
 
+@[simp] theorem getv_getmp: getv (getmp m bs) = getvp m bs := rfl
+
 end Memory
 
 inductive Source
