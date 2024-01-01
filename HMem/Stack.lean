@@ -107,6 +107,10 @@ inductive Stack
 | execution (top: Thunk) (callers: List (Thunk × List Bool))
 
 namespace Stack
+def getResult: Stack → Memory
+| result m => m
+| _ => 0
+
 def step: Stack → Stack
 | execution ⟨m, .op f next, p⟩ caller => execution ⟨f.apply m, next, p⟩ caller
 | execution ⟨m, .branch f pos neg, p⟩ caller => execution ⟨m, ite (f.apply m) pos neg, p⟩ caller
@@ -376,12 +380,24 @@ theorem hasResult_branch_neg (h: c.apply m = false):
     hasResult (.execution ⟨m, .branch c pos neg, p⟩ cs) =
     hasResult (.execution ⟨m, neg, p⟩ cs) := by simp [h]
 
+def hasTimeCost (s: Stack) (n: ℕ): Prop := ∃ (m: Memory), step^[n] s = result m
+
 def halts (s: Stack): Prop := ∃ (v: ℕ × Memory), step^[v.fst] s = result v.snd
 
+def halts₂ (s: Stack): Prop := ∃ (n: ℕ) (m: Memory), step^[n] s = result m
 
-def getResult: Stack → Memory
-| result m => m
-| _ => 0
+theorem halts_iff_halts₂: halts s ↔ halts₂ s :=
+  ⟨ λ h ↦ h.elim λ _ h ↦ ⟨_, _, h⟩,
+    λ h ↦ h.elim λ _ h ↦ h.elim λ _ h ↦ ⟨(_, _), h⟩⟩
+
+instance (s: Stack) (n: ℕ): Decidable (∃ outp, Stack.step^[n] s = .result outp) :=
+  match Stack.step^[n] s with
+  | .execution _ _ => Decidable.isFalse (not_exists_of_forall_not λ _ ↦ Stack.noConfusion)
+  | .result _ => Decidable.isTrue ⟨_, rfl⟩
+
+def timeCost (s: Stack) (h: s.halts): ℕ := Nat.find (halts_iff_halts₂.mp h)
+
+def resultOf (s: Stack) (h: s.halts): Memory := getResult (step^[s.timeCost h] s)
 
 end Stack
 
@@ -396,9 +412,9 @@ def hasResult (p: Program) (inp: Memory) (outp: Memory): Prop := Stack.hasResult
 theorem hasResult_injOut {p: Program} {inp: Memory} {o₀ o₁: Memory}:
   p.hasResult inp o₀ → p.hasResult inp o₁ → o₀ = o₁ := Stack.hasResult_inj
 
-instance (s: Stack) (n: ℕ): Decidable (∃ outp, Stack.step^[n] s = .result outp) :=
-  match Stack.step^[n] s with
-  | .execution _ _ => Decidable.isFalse (not_exists_of_forall_not λ _ ↦ Stack.noConfusion)
-  | .result _ => Decidable.isTrue ⟨_, rfl⟩
+def timeCost (p: Program) {inp: Memory} (h: p.haltsOn inp): ℕ := Stack.timeCost _ h
+
+def result (p: Program) {inp: Memory} (h: p.haltsOn inp): Memory := Stack.resultOf _ h
+
 end Program
 end HMem

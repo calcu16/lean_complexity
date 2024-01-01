@@ -7,11 +7,12 @@ import Complexity.Basic
 
 namespace HMem.Computability
 
-instance (f: α → β) [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] [htr: HasTrace f]: Computable Encoding.Model f where
+instance (f: α → β) [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] [htr: HasTrace f]:
+    Computable Encoding.Model f where
   program := htr.program
   has_result := htr.sound.hasResult
 
-instance [Complexity.Encoding α Memory]: HasTrace ↿(@List.cons α) where
+instance [Complexity.Encoding α Memory]: HasTrace ↿(@List.cons α) ⟦1⟧ where
   program := .build [ .setv 0 true ]
   trace _ := []
   height _ := 0

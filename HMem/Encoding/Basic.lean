@@ -1,6 +1,7 @@
 import HMem.Memory
 import HMem.Stack
 import Complexity.Basic
+import Complexity.Asymptotic
 import Mathlib.Logic.Basic
 import Mathlib.Data.Fin.Tuple.Basic
 import Mathlib.Init.Data.Nat.Bitwise
@@ -160,24 +161,25 @@ def Model: Complexity.Model where
 @[simp] theorem result_def: Encoding.Model.Result = Memory := rfl
 @[simp] theorem model_has_result: Encoding.Model.has_result = Program.hasResult := rfl
 
-
 instance [h: Complexity.Encoding α Memory]: Complexity.Encoding α Encoding.Model.Data := h
 instance [h: Complexity.Encoding α Memory]: Complexity.Encoding α Encoding.Model.Result := h
-
 def getProgram [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (f: α → β) [h: Computable Encoding.Model f]: Program :=
   h.program
 
 @[simp] theorem getProgram_hasResult [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (f: α → β) [h: Computable Encoding.Model f] (a: α):
     (getProgram f).hasResult (encode a) (encode (f a)) := h.has_result a
 
--- def RuntimeModel: Complexity.CostedModel where
---   toModel := Model
---   Cost := ℕ
---   cost := Program.timeCost _
+def RuntimeModel: Complexity.CostedModel where
+  toModel := Model
+  cost' h := Program.timeCost _ (h.elim λ _ h ↦ h.elim λ _ h ↦ ⟨(_, _), h⟩)
+
+instance [h: Complexity.Encoding α Memory]: Complexity.Encoding α Encoding.RuntimeModel.Data := h
+instance [h: Complexity.Encoding α Memory]: Complexity.Encoding α Encoding.RuntimeModel.Result := h
+
 
 end Encoding
 
-@[simp] def Program.subroutine' (dst src: Source) [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (f: α → β) [h: Computable Encoding.Model f]: Program → Program :=
+@[simp] def Program.subroutine' (dst src: Source) [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (f: α → β) [Computable Encoding.Model f]: Program → Program :=
   subroutine dst src (Encoding.getProgram f)
 
 end HMem
