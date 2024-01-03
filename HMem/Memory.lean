@@ -11,6 +11,10 @@ inductive _Memory
 deriving DecidableEq, Inhabited, Repr
 
 namespace _Memory
+def size: _Memory → ℕ
+| leaf => 0
+| node _ t f => size t + size f + 1
+
 def getv: _Memory → Bool
 | leaf => false
 | node v _ _ => v
@@ -20,6 +24,7 @@ def getm: _Memory → Bool → _Memory
 | node _ f _, false => f
 | node _ _ t, true => t
 
+@[simp] theorem getv_node: (node v f t).getv = v := rfl
 theorem getm_node_false: (node v f t).getm false = f := rfl
 theorem getm_node_true: (node v f t).getm true = t := rfl
 
@@ -33,6 +38,8 @@ def canonical: _Memory → _Memory
 instance setoid: Setoid _Memory where
   r lhs rhs := lhs.canonical = rhs.canonical
   iseqv := ⟨ λ _ ↦ Eq.refl _, Eq.symm, Eq.trans ⟩
+
+@[simp] theorem canonical_leaf_def: leaf.canonical = leaf := rfl
 
 theorem canonical_node_def {v: Bool} {f t: _Memory}:
   (node v f t).canonical =
@@ -109,11 +116,20 @@ theorem canonical_congr: {m₀ m₁: _Memory} →
       _Memory.noConfusion
   | Or.inr h₀, Or.inr h₁ => h₀ ▸ h₁ ▸ congr (congrArg₂ _ hv (hm false)) (hm true)
 
-theorem canonical_idempotent: {m: _Memory} → m.canonical.canonical = m.canonical
+@[simp] theorem canonical_idempotent: {m: _Memory} → m.canonical.canonical = m.canonical
 | leaf => rfl
 | node _ _ _ => canonical_congr canonical_getv λ
   | false => (congrArg _ canonical_getm.symm).trans canonical_idempotent
   | true => (congrArg _ canonical_getm.symm).trans canonical_idempotent
+
+theorem canonical_le_height: (m: _Memory) → m.canonical.size ≤ m.size
+| .leaf => Nat.zero_le _
+| .node v f t =>
+  match canonical_cases (node v f t) with
+  | Or.inl h => h ▸ Nat.zero_le _
+  | Or.inr h => h ▸  Nat.succ_le_succ (Nat.add_le_add
+    (canonical_le_height f)
+    (canonical_le_height t))
 
 end _Memory
 
@@ -124,12 +140,15 @@ def out: Memory → _Memory := Quotient.lift _Memory.canonical (λ _ _ ↦ id)
 theorem out_exact {m: _Memory}: out ⟦m⟧ = m.canonical :=
   Quotient.lift_mk (s := _Memory.setoid) _ (λ _ _ ↦ id) _
 
-theorem out_sound {m: Memory}: ⟦m.out⟧ = m :=
+@[simp] theorem out_sound {m: Memory}: ⟦m.out⟧ = m :=
   (Quotient.exists_rep m).elim λ _ h ↦ h ▸
     Quotient.sound (_Memory.canonical_idempotent.trans out_exact)
 
 theorem out_inj {m₀ m₁: Memory} (h: out m₀ = out m₁): m₀ = m₁ :=
   @out_sound m₀ ▸ @out_sound m₁ ▸ congrArg Quotient.mk' h
+
+@[simp] theorem canonical_out {m: Memory}: m.out.canonical = m.out :=
+  out_sound (m := m) ▸ out_exact ▸ _Memory.canonical_idempotent
 
 instance: Repr Memory := ⟨ Repr.reprPrec ∘ Memory.out ⟩
 
@@ -149,10 +168,44 @@ instance: DecidableEq Memory := λ a b ↦
   then Decidable.isTrue (out_inj h)
   else Decidable.isFalse (h ∘ congrArg _)
 
+instance: Coe Memory Bool where
+  coe x := x ≠ 0
+
 @[simp] theorem eq_zero_symm {m: Memory}: (0 = m) = (m = 0) := iff_iff_eq.mp ⟨ Eq.symm, Eq.symm ⟩
+
+def size (m: Memory): ℕ := m.out.size
+
+theorem size_zero_iff {m: Memory}: m.size = 0 ↔ m = 0 := ⟨
+    λ hm ↦ match h:out m with
+    | .leaf => out_inj h
+    | .node _ _ _ => absurd
+      (hm.symm.trans (congr_arg _Memory.size h))
+      Nat.noConfusion,
+    λ hm ↦ hm ▸ rfl ⟩
+
+theorem size_zero (m: Memory): (m.size = 0) = (m = 0) :=
+  iff_iff_eq.mp size_zero_iff
 
 def getv (m: Memory): Bool := m.out.getv
 def getm (m: Memory) (b: Bool): Memory := ⟦m.out.getm b⟧
+
+theorem getm_size (m: Memory) (b: Bool): (m.getm b).size ≤ m.size.pred :=
+  match h:m.out, b with
+  | .leaf, _ => le_of_eq_of_le
+    (congrArg size (congrArg Quotient.mk' (congrArg₂ _ h rfl)))
+    (Nat.zero_le _)
+  | .node _ _ _, false => le_of_eq_of_le
+    (congrArg size (congrArg Quotient.mk' (congrArg₂ _ h rfl)))
+    (le_of_le_of_eq (le_trans
+      (_Memory.canonical_le_height _)
+      (Nat.le_add_right _ _))
+      (congrArg Nat.pred (congrArg _Memory.size h.symm)))
+  | .node _ _ _, true => le_of_eq_of_le
+    (congrArg size (congrArg Quotient.mk' (congrArg₂ _ h rfl)))
+    (le_of_le_of_eq (le_trans
+      (_Memory.canonical_le_height _)
+      (Nat.le_add_left _ _))
+      (congrArg Nat.pred (congrArg _Memory.size h.symm)))
 
 theorem getv_eq (m: _Memory): getv ⟦m⟧ = m.getv := _Memory.canonical_getv
 theorem getm_eq (m: _Memory) (b: Bool): getm ⟦m⟧ b = ⟦m.getm b⟧ :=
@@ -172,10 +225,18 @@ theorem inj {m₀ m₁: Memory}: m₀.getv = m₁.getv → m₀.getm = m₁.getm
     Quotient.sound (_Memory.canonical_congr hv λ _ ↦
       Quotient.exact (congrFun hm _))
 
+theorem mk_eq (m: Memory): mk m.getv (m.getm false) (m.getm true) = m :=
+  inj (getv_eq _) (funext λ
+  | false => getm_mk_f
+  | true => getm_mk_t)
+
+theorem zero_def: (0:Memory) = ⟦.leaf⟧ := rfl
+@[simp] theorem zero_out: (0:Memory).out = .leaf := rfl
 @[simp] theorem zero_def': mk false 0 0 = 0 := inj rfl rfl
 @[simp] theorem zero_getv: getv 0 = false := rfl
 @[simp] theorem zero_getm: getm 0 b = 0 := rfl
 @[simp] theorem one_def: 1 = mk true 0 0 := rfl
+
 
 @[simp] theorem mk_injEq: (mk v₀ f₀ t₀ = mk v₁ f₁ t₁) = (v₀ = v₁ ∧ f₀ = f₁ ∧ t₀ = t₁) :=
   eq_iff_iff.mpr ⟨
@@ -235,6 +296,18 @@ def setvp (m: Memory) (bs: List Bool): Bool → Memory := m.setmp bs ∘ (m.getm
 
 @[simp] theorem getv_getmp: getv (getmp m bs) = getvp m bs := rfl
 
+@[elab_as_elim] def recOn.{u} {motive: Memory → Sort u} (m: Memory) (base: motive 0) (ind: ∀ (b: Bool) (f t: Memory), Memory.size (.mk b f t) > 0 → motive f → motive t → motive (.mk b f t)): motive m :=
+  match h:m.size with
+  | 0 => size_zero_iff.mp h ▸ base
+  | (n+1) =>
+    have: (getm m false).size < m.size := lt_of_le_of_lt (getm_size _ _) (h ▸ Nat.lt_succ_self _)
+    have: (getm m true).size < m.size := lt_of_le_of_lt (getm_size _ _) (h ▸ Nat.lt_succ_self _)
+    mk_eq m ▸ ind _ _ _
+      (lt_of_lt_of_eq (Nat.zero_lt_succ n) ((congrArg _ (mk_eq _)).trans h).symm)
+      (recOn _ base ind)
+      (recOn _ base ind)
+termination_by _ m _ _ => m.size
+
 end Memory
 
 inductive Source
@@ -251,6 +324,11 @@ def height: Source → ℕ
 @[simp] theorem height_imm_tl: tl.height < (imm hd tl).height := Nat.lt_succ_self _
 @[simp] theorem height_idx_hd: hd.height < (idx hd tl).height := Nat.lt_succ_of_le (le_max_left _ _)
 @[simp] theorem height_idx_tl: tl.height < (idx hd tl).height := Nat.lt_succ_of_le (le_max_right _ _)
+
+def size: Source → ℕ
+| nil => 0
+| imm _ tl => size tl + 1
+| idx hd tl => size hd + size tl + 1
 
 def get: Source → Memory → List Bool
 | nil, _ => []

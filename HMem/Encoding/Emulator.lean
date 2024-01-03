@@ -18,11 +18,25 @@ theorem encodeSource_inj {s₀ s₁: Source}: encodeSource s₀ = encodeSource s
   cases h₀:s₀ <;> cases h₁:s₁
   case imm.imm => simpa [encodeSource] using λ hhd htl ↦ ⟨hhd, encodeSource_inj htl⟩
   case idx.idx => simpa [encodeSource] using λ hhd htl ↦ ⟨encodeSource_inj hhd, encodeSource_inj htl⟩
-  all_goals { simp [encodeSource] }
+
+def decodeSource: _Memory → Source
+| .leaf => .nil
+| .node false _ _ => .nil
+| .node true .leaf tl => .imm false (decodeSource tl)
+| .node true (.node false hd _) tl => .imm hd.getv (decodeSource tl)
+| .node true (.node true hd _) tl => .idx (decodeSource hd) (decodeSource tl)
+
+theorem decodeSource_inj: (s: Source) → decodeSource (encodeSource s).out = s
+| .nil => by simp [encodeSource, decodeSource]
+| .imm false tl => by simp [encodeSource, decodeSource, decodeSource_inj tl]
+| .imm true tl => by simp [encodeSource, decodeSource, decodeSource_inj tl]
+| .idx hd tl =>  by simp [encodeSource, decodeSource, decodeSource_inj hd, decodeSource_inj tl]
 
 instance: Encoding Source Memory where
   encode := encodeSource
-  inj _ _ := encodeSource_inj
+  encode_inj _ _ := encodeSource_inj
+  decode m := some (decodeSource m.out)
+  decode_inv := by simp [decodeSource_inj]
 
 @[simp] theorem encodeSource_nil: (encode Source.nil:Memory) = 0 := rfl
 @[simp] theorem encodeSource_imm: (encode (Source.imm hd tl):Memory) = .mk true (.mk false (encode hd) 0) (encode tl) := rfl
@@ -33,61 +47,79 @@ instance: Encoding OpInstruction.MemoryOperation Memory where
   | .COPY => 0
   | .MOVE => 1
   | .SWAP => .mk true 1 0
-  inj a b := by cases a <;> cases b <;> simp
+  encode_inj a b := by cases a <;> cases b <;> simp
+  decode m := match m.getv, m.getvp [false] with
+    | false, _ => some .COPY
+    | true, false => some .MOVE
+    | true, true => some .SWAP
+  decode_inv
+  | .COPY => rfl
+  | .MOVE => rfl
+  | .SWAP => rfl
 
-instance: Encoding OpInstruction Memory where
-  encode
-  | .const dst val => .mk false (encode dst) (encode val)
-  | .vop op dst src => .mk true (encode op) (.mk false (encode dst) (encode src))
-  | .mop op dst src => .mk true (encode op) (.mk true (encode dst) (encode src))
-  inj a b := by
-    cases a <;> cases b
-    case vop.vop => simpa using λ hN hop hdst _ hsrc ↦ ⟨hN, hop, hdst, hsrc⟩
-    all_goals simp
+-- instance: Encoding OpInstruction Memory where
+--   encode
+--   | .const dst val => .mk false (encode dst) (encode val)
+--   | .vop op dst src => .mk true (encode op) (.mk false (encode dst) (encode src))
+--   | .mop op dst src => .mk true (encode op) (.mk true (encode dst) (encode src))
+--   encode_inj a b := by
+--     cases a <;> cases b
+--     case vop.vop => simpa using λ hN hop hdst _ hsrc ↦ ⟨hN, hop, hdst, hsrc⟩
+--     all_goals simp
+--   decode := sorry
+--   decode_inv := sorry
 
-instance: Encoding BranchInstruction Memory where
-  encode
-  | .ifNull src => .mk false (encode src) 0
-  | .ifTrue op src => .mk true (encode op) (encode src)
-  inj a b := by
-    cases a <;> cases b
-    case ifTrue.ifTrue => simpa using λ hN hcond _ hsrc ↦ ⟨hN, hcond, hsrc⟩
-    all_goals simp
+-- instance: Encoding BranchInstruction Memory where
+--   encode
+--   | .ifNull src => .mk false (encode src) 0
+--   | .ifTrue op src => .mk true (encode op) (encode src)
+--   encode_inj a b := by
+--     cases a <;> cases b
+--     case ifTrue.ifTrue => simpa using λ hN hcond _ hsrc ↦ ⟨hN, hcond, hsrc⟩
+--     all_goals simp
+--   decode := sorry
+--   decode_inv := sorry
 
-def encodeProgram: Program → Memory
-| .exit => 0
-| .op op is => .mk true (.mk false (encode op) (encodeProgram is)) 0
-| .branch cond pos neg => .mk true (.mk false (encode cond) 0) (.mk true (encodeProgram pos) (encodeProgram neg))
-| .recurse dst src is => .mk true (.mk true (encode dst) (encode src)) (.mk false 0 (encodeProgram is))
-| .subroutine dst src func is => .mk true (.mk true (encode dst) (encode src)) (.mk true (encodeProgram func) (encodeProgram is))
+-- def encodeProgram: Program → Memory
+-- | .exit => 0
+-- | .op op is => .mk true (.mk false (encode op) (encodeProgram is)) 0
+-- | .branch cond pos neg => .mk true (.mk false (encode cond) 0) (.mk true (encodeProgram pos) (encodeProgram neg))
+-- | .recurse dst src is => .mk true (.mk true (encode dst) (encode src)) (.mk false 0 (encodeProgram is))
+-- | .subroutine dst src func is => .mk true (.mk true (encode dst) (encode src)) (.mk true (encodeProgram func) (encodeProgram is))
 
-theorem encodeProgram_inj {p₀ p₁: Program}: encodeProgram p₀ = encodeProgram p₁ → p₀ = p₁ := by
-  induction p₀ generalizing p₁ <;> cases p₁
-  case op.op ih _ _ => simpa [encodeProgram] using λ x y ↦ ⟨x, ih y⟩
-  case branch.branch pih nih _ _ _ =>
-    simpa [encodeProgram] using λ hdst hpos hneg ↦ ⟨ hdst, pih hpos, nih hneg⟩
-  case subroutine.subroutine fih nih _ _ _ _ =>
-    simpa [encodeProgram] using λ hdst hsrc hfunc hnext ↦ ⟨ hdst, hsrc, fih hfunc, nih hnext ⟩
-  case recurse.recurse ih _ _ _ =>
-    simpa [encodeProgram] using λ hdst hsrc hnext ↦ ⟨hdst, hsrc, ih hnext⟩
-  all_goals simp [encodeProgram]
+-- theorem encodeProgram_inj {p₀ p₁: Program}: encodeProgram p₀ = encodeProgram p₁ → p₀ = p₁ := by
+--   induction p₀ generalizing p₁ <;> cases p₁
+--   case op.op ih _ _ => simpa [encodeProgram] using λ x y ↦ ⟨x, ih y⟩
+--   case branch.branch pih nih _ _ _ =>
+--     simpa [encodeProgram] using λ hdst hpos hneg ↦ ⟨ hdst, pih hpos, nih hneg⟩
+--   case subroutine.subroutine fih nih _ _ _ _ =>
+--     simpa [encodeProgram] using λ hdst hsrc hfunc hnext ↦ ⟨ hdst, hsrc, fih hfunc, nih hnext ⟩
+--   case recurse.recurse ih _ _ _ =>
+--     simpa [encodeProgram] using λ hdst hsrc hnext ↦ ⟨hdst, hsrc, ih hnext⟩
+--   all_goals simp [encodeProgram]
 
-instance: Encoding Program Memory where
-  encode := encodeProgram
-  inj _ _ := encodeProgram_inj
+-- instance: Encoding Program Memory where
+--   encode := encodeProgram
+--   encode_inj _ _ := encodeProgram_inj
+--   decode := sorry
+--   decode_inv := sorry
 
-instance: Encoding Thunk Memory where
-  encode
-  | .mk f c s => .mk false (.mk false (encode f) (encode c)) (encode s)
-  inj
-  | .mk _ _ _, .mk _ _ _ => by
-    simpa using λ hf hc hs ↦ ⟨ hf, hc, hs ⟩
+-- instance: Encoding Thunk Memory where
+--   encode
+--   | .mk f c s => .mk false (.mk false (encode f) (encode c)) (encode s)
+--   encode_inj
+--   | .mk _ _ _, .mk _ _ _ => by
+--     simpa using λ hf hc hs ↦ ⟨ hf, hc, hs ⟩
+--   decode := sorry
+--   decode_inv := sorry
 
-instance: Encoding Stack Memory where
-  encode
-  | .result m => .mk false (encode m) 0
-  | .execution t cs => .mk true (encode t) (encode cs)
-  inj a b := by cases a <;> cases b <;> simp
+-- instance: Encoding Stack Memory where
+--   encode
+--   | .result m => .mk false (encode m) 0
+--   | .execution t cs => .mk true (encode t) (encode cs)
+--   encode_inj a b := by cases a <;> cases b <;> simp
+--   decode := sorry
+--   decode_inv := sorry
 
 end Encoding
 end HMem

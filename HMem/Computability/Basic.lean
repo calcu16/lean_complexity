@@ -12,7 +12,7 @@ instance (f: α → β) [Complexity.Encoding α Memory] [Complexity.Encoding β 
   program := htr.program
   has_result := htr.sound.hasResult
 
-instance [Complexity.Encoding α Memory]: HasTrace ↿(@List.cons α) ⟦1⟧ where
+instance [Complexity.Encoding α Memory]: HasTrace ↿(@List.cons α) where
   program := .build [ .setv 0 true ]
   trace _ := []
   height _ := 0

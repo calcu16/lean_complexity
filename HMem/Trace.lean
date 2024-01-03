@@ -1,6 +1,7 @@
 import HMem.Stack
 import HMem.Encoding.Basic
-import Complexity.Asymptotic
+import Complexity.Basic
+import Complexity.Cost
 
 namespace HMem
 open Complexity
@@ -212,10 +213,10 @@ class HasTrace (f: α → β) [Encoding α Memory] [Encoding β Memory] where
   height: α → ℕ
   sound: trace.MatchesProgram program height
 
-class HasCostedTrace (f: α → β) [Encoding α Memory] [Encoding β Memory] (fc: Asymptotic Encoding.RuntimeModel α) where
-  program: Program
-  trace: Trace f
-  height: α → ℕ
-  sound: trace.MatchesProgram program height
+-- class HasCostedTrace (f: α → β) [Encoding α Memory] [Encoding β Memory] (fc: Asymptotic Encoding.RuntimeModel α) where
+--   program: Program
+--   trace: Trace f
+--   height: α → ℕ
+--   sound: trace.MatchesProgram program height
 
 end HMem
