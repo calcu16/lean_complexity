@@ -18,6 +18,7 @@ theorem encodeSource_inj {s₀ s₁: Source}: encodeSource s₀ = encodeSource s
   cases h₀:s₀ <;> cases h₁:s₁
   case imm.imm => simpa [encodeSource] using λ hhd htl ↦ ⟨hhd, encodeSource_inj htl⟩
   case idx.idx => simpa [encodeSource] using λ hhd htl ↦ ⟨encodeSource_inj hhd, encodeSource_inj htl⟩
+  all_goals simp[encodeSource]
 
 def decodeSource: _Memory → Source
 | .leaf => .nil

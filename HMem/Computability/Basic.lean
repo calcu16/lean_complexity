@@ -1,5 +1,6 @@
 import HMem.Trace
 import HMem.Encoding.Basic
+import HMem.Computability.TracedProgram
 import Complexity.Basic
 
 @[simp] theorem Function.HasUncurry.apply₂ (f: α → β → γ) (arg: α × β):
@@ -19,5 +20,10 @@ instance [Complexity.Encoding α Memory]: HasTrace ↿(@List.cons α) where
   sound.correct | (_, _) => by simp
   sound.consistent | _, _ => by simp
   sound.wellFounded | _ => by simp
+
+instance [Complexity.Encoding α Memory]: Complexity.TracedProgram.HasTrace ↿(@List.cons α) where
+  program := [ .setv 0 true ]
+  size _ := 0
+  sound | (_, _) => by simp
 
 end HMem.Computability
