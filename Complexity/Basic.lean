@@ -50,7 +50,8 @@ class Computable {α: Type _} {β: Type} (m: Complexity.Model) [Complexity.Encod
   program: m.Program
   has_result (a: α): m.has_result program (Complexity.encode a) (Complexity.encode (f a))
 
+def Computable.cost {m: Complexity.Model} [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result] {f: α → β} [computable: Computable m f]: Complexity.CostFunction α ℕ := m.cost λ _ ↦ ⟨_, computable.has_result _⟩
 
 structure Complexity {α: Type _} {β: Type _} (m: Complexity.Model) [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result] (f: α → β) (cost: Complexity.CostFunction α ℕ) where
   computable: Computable m f
-  cost_le: m.cost (λ _ ↦ ⟨_, computable.has_result _⟩) ≤ cost
+  cost_le: computable.cost ≤ cost
