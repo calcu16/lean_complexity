@@ -329,6 +329,10 @@ def size: Source → ℕ
 | nil => 0
 | imm _ tl => size tl + 1
 | idx hd tl => size hd + size tl + 1
+@[simp] theorem size_imm_tl: tl.size < (imm hd tl).size := Nat.lt_succ_self _
+@[simp] theorem size_idx_hd: hd.size < (idx hd tl).size := Nat.lt_succ_of_le (Nat.le_add_right _ _)
+@[simp] theorem size_idx_tl: tl.size < (idx hd tl).size := Nat.lt_succ_of_le (Nat.le_add_left _ _)
+
 
 def get: Source → Memory → List Bool
 | nil, _ => []

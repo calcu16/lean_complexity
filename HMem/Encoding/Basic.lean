@@ -53,6 +53,7 @@ instance: Complexity.Encoding Bool Memory where
   decode_inv := by simp
 
 @[simp] theorem encodeBool {b: Bool}: (encode b:Memory) = .mk b 0 0 := rfl
+@[simp] theorem decodeBool {m: Memory}: (decode Bool m) = some m.getv := rfl
 
 instance [Encoding α Memory] [Encoding β Memory]: Encoding (α × β) Memory where
   encode | (a, b) => .mk false (encode a) (encode b)
@@ -64,6 +65,9 @@ instance [Encoding α Memory] [Encoding β Memory]: Encoding (α × β) Memory w
 @[simp] theorem encode_prod [Encoding α Memory] [Encoding β Memory]: {v: α × β} →
     (encode v:Memory) = .mk false (encode v.fst) (encode v.snd)
 | (_, _) => rfl
+
+@[simp] theorem decode_prod [Encoding α Memory] [Encoding β Memory] {m: Memory}:
+  decode (α × β) m = Option.map₂ Prod.mk (decode α (m.getm false)) (decode β (m.getm true)) := rfl
 
 instance [Encoding α Memory] [Encoding β Memory]: Encoding (α ⊕ β) Memory where
   encode
@@ -147,6 +151,7 @@ instance: Encoding Memory Memory where
   decode_inv _ := rfl
 
 @[simp] theorem encode_memory (m: Memory): encode m = m := rfl
+@[simp] theorem decode_memory (m: Memory): decode Memory m = some m := rfl
 
 def encodeOp [Encoding α Memory]: {N: ℕ} → ((Fin N → Bool) → α) → Memory
 | 0, f => Memory.mk false (encode (f finZeroElim)) 0
