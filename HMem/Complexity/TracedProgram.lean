@@ -313,6 +313,12 @@ theorem hasResult (tp: TracedProgram f) {size: α → ℕ} (hs: tp.argsMatch) (h
     matchesThunkResultBelow (hs _) (hd _) (hr _)
       (λ _ hlt ↦ ih _ (ha ▸ hlt) _ rfl)
 
+-- def recursiveArgs: TracedProgram f → (α → Option Memory) → List (α → Option α)
+-- | .exit, _ => []
+-- | .op inst next, fm => recursiveArgs next (Option.map inst.apply ∘ fm)
+-- | .branch inst pos neg, fm =>
+--   recursiveArgs pos sorry ++ recursiveArgs neg sorry
+
 end TracedProgram
 
 class HasTrace {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] (f: α → β) where
