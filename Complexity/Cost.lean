@@ -82,7 +82,7 @@ theorem mul'_le_mul' {a x b y: CostFunction α ℕ} (hax: a ≤ x) (hby: b ≤ y
 
 def ALE (x y: CostFunction α ℕ): Prop := ∃ (k: ℕ), x ≤ k * y + k
 
-local infix:50 " ≤≤ "  => ALE
+scoped infix:50 " ≤≤ "  => ALE
 
 theorem ale_of_le {x y: CostFunction α ℕ} (h: x ≤ y): x ≤≤ y := ⟨_, le_add_right (le_of_le_of_eq h (one_mul _).symm)⟩
 

@@ -1,3 +1,4 @@
+import Complexity.Asymptotic
 import Complexity.Cost
 import Mathlib.Tactic
 
@@ -43,8 +44,6 @@ def Model.totalProgram (m: Model) (p: m.Program) (α: Type _) [Encoding α m.Dat
 
 def Model.cost (m: Model) {p: m.Program} {α: Type} [Encoding α m.Data] (h: m.totalProgram p α): CostFunction α ℕ := λ a ↦ m.cost' _ _ (h a)
 
-end Complexity
-
 class Computable {α: Type _} {β: Type} (m: Complexity.Model) [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result]
     (f: α → β) where
   program: m.Program
@@ -52,6 +51,9 @@ class Computable {α: Type _} {β: Type} (m: Complexity.Model) [Complexity.Encod
 
 def Computable.cost {m: Complexity.Model} [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result] {f: α → β} [computable: Computable m f]: Complexity.CostFunction α ℕ := m.cost λ _ ↦ ⟨_, computable.has_result _⟩
 
-structure Complexity {α: Type _} {β: Type _} (m: Complexity.Model) [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result] (f: α → β) (cost: Complexity.CostFunction α ℕ) where
-  computable: Computable m f
-  cost_le: computable.cost ≤ cost
+end Complexity
+
+class Complexity {α: Type _} {β: Type _} (m: Complexity.Model) [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result]
+    (f: α → β) extends Complexity.Computable m f where
+  cost: Complexity.CostFunction α ℕ
+  cost_le: toComputable.cost ∈ Complexity.O cost

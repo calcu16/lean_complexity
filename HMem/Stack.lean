@@ -60,7 +60,7 @@ def BranchInstruction.apply: BranchInstruction → Memory → Bool
 inductive Program
 | exit
 | op (inst: OpInstruction) (next: Program)
-| branch (inst: BranchInstruction) (pos: Program) (neg: Program)
+| branch (inst: BranchInstruction) (next: Bool → Program)
 | subroutine (dst src: Source) (func: Program) (next: Program)
 | recurse (dst src: Source) (next: Program)
 
@@ -68,6 +68,13 @@ namespace Program
 @[simp] def build: List (Program → Program) → Program
 | [] => .exit
 | p::ps => p (build ps)
+
+def size: Program → ℕ
+| exit => 1
+| op _ next => size next + 1
+| branch _ next => size (next true) + size (next false) + 1
+| subroutine _ _ func next => size func + size next + 1
+| recurse _ _ next => size next + 1
 
 @[match_pattern] def call (dst src: Source): Option Program → Program → Program
 | some func, next => subroutine dst src func next
@@ -79,7 +86,7 @@ namespace Program
 @[simp] def copy (dst src: Source): Program → Program := op (.mop .COPY dst src)
 @[simp] def move (dst src: Source): Program → Program := op (.mop .MOVE dst src)
 @[simp] def swap (dst src: Source): Program → Program := op (.mop .SWAP dst src)
-@[simp] def ifv (src: Source): List (Program → Program) → Program → Program := branch (.ifTrue (λ f ↦ f 0) (λ (_: Fin 1) ↦ src)) ∘ build
+@[simp] def ifv (src: Source) (t: List (Program → Program)) (f: Program): Program := branch (.ifTrue (λ f ↦ f 0) (λ (_: Fin 1) ↦ src)) λ | true => build t | false => f
 
 def subroutine_def: subroutine dst src func next = call dst src (some func) next := rfl
 def recurse_def: recurse dst src next = call dst src none next := rfl
@@ -113,7 +120,7 @@ def getResult: Stack → Memory
 
 def step: Stack → Stack
 | execution ⟨m, .op f next, p⟩ caller => execution ⟨f.apply m, next, p⟩ caller
-| execution ⟨m, .branch f pos neg, p⟩ caller => execution ⟨m, ite (f.apply m) pos neg, p⟩ caller
+| execution ⟨m, .branch f next, p⟩ caller => execution ⟨m, next (f.apply m), p⟩ caller
 | execution ⟨m, .recurse dst src next, p⟩ caller => execution ⟨m.getms src, p, p⟩ ((⟨m, next, p⟩, dst.get m)::caller)
 | execution ⟨m, .subroutine dst src func next, p⟩ caller => execution ⟨m.getms src, func, func⟩ ((⟨m, next, p⟩, dst.get m)::caller)
 | execution ⟨m, .exit, _⟩ (c::cs) => execution (c.fst.setResult c.snd m) cs
@@ -132,7 +139,7 @@ theorem stack_length_lt_istep_result: {n: ℕ} → {t: Thunk} → {cs: List _} �
   step^[n] (execution t cs) = result m → cs.length < n
 | 0, _, _, h => absurd h Stack.noConfusion
 | _+1, ⟨_, .op _ _, _⟩, _, h => Nat.lt_succ_of_lt (stack_length_lt_istep_result h)
-| _+1, ⟨_, .branch _ _ _, _⟩, _, h => Nat.lt_succ_of_lt (stack_length_lt_istep_result h)
+| _+1, ⟨_, .branch _ _, _⟩, _, h => Nat.lt_succ_of_lt (stack_length_lt_istep_result h)
 | _+1, ⟨_, .subroutine _ _ _ _, _⟩, _, h =>
   Nat.lt_of_succ_lt_succ (Nat.lt_succ_of_lt (Nat.lt_succ_of_lt
     (List.length_cons  _ _ ▸ stack_length_lt_istep_result h)))
@@ -249,6 +256,12 @@ theorem istep_call_result
       Function.iterate_succ_apply' _ _ _ ▸
       istep_execution_stack_invariant h₀' (cs := (⟨m, is, p⟩, dst.get m)::cs) ▸
       congrArg step h₁'))
+
+theorem istep_subroutine_result
+    (h₀: step^[n₀] (.execution ⟨Memory.getms m src, func, func⟩ []) = .result r₀)
+    (h₁: step^[n₁] (.execution ⟨m.setms dst r₀, is, p⟩ cs) = .result r₁):
+    step^[n₁ + n₀ + 1] (.execution ⟨m, .subroutine dst src func is, p⟩ cs) = .result r₁ :=
+  Program.subroutine_def ▸ istep_call_result (func := some func) h₀ h₁
 
 theorem istep_recurse_result
     (h₀: step^[n₀] (.execution ⟨Memory.getms m src, p, p⟩ []) = .result r₀)
@@ -367,18 +380,9 @@ theorem hasResult_execution: hasResult (.execution t cs) = hasResult (.step (.ex
   hasResult_execution
 
 @[simp] theorem hasResult_branch:
-    hasResult (.execution ⟨m, .branch c pos neg, p⟩ cs) =
-    hasResult (.execution ⟨m, ite (c.apply m) pos neg, p⟩ cs) :=
+    hasResult (.execution ⟨m, .branch c next, p⟩ cs) =
+    hasResult (.execution ⟨m, next (c.apply m), p⟩ cs) :=
   hasResult_execution
-
-theorem hasResult_branch_pos (h: c.apply m):
-    hasResult (.execution ⟨m, .branch c pos neg, p⟩ cs) =
-    hasResult (.execution ⟨m, pos, p⟩ cs) := by simp [h]
-
-
-theorem hasResult_branch_neg (h: c.apply m = false):
-    hasResult (.execution ⟨m, .branch c pos neg, p⟩ cs) =
-    hasResult (.execution ⟨m, neg, p⟩ cs) := by simp [h]
 
 def hasTimeCost (s: Stack) (n: ℕ): Prop := ∃ (m: Memory), step^[n] s = result m
 
@@ -390,6 +394,7 @@ theorem halts_iff_halts₂: halts s ↔ halts₂ s :=
   ⟨ λ h ↦ h.elim λ _ h ↦ ⟨_, _, h⟩,
     λ h ↦ h.elim λ _ h ↦ h.elim λ _ h ↦ ⟨(_, _), h⟩⟩
 
+
 instance (s: Stack) (n: ℕ): Decidable (∃ outp, Stack.step^[n] s = .result outp) :=
   match Stack.step^[n] s with
   | .execution _ _ => Decidable.isFalse (not_exists_of_forall_not λ _ ↦ Stack.noConfusion)
@@ -399,7 +404,113 @@ def timeCost (s: Stack) (h: s.halts): ℕ := Nat.find (halts_iff_halts₂.mp h)
 
 def resultOf (s: Stack) (h: s.halts): Memory := getResult (step^[s.timeCost h] s)
 
+theorem resultOf_timeCost_sound (s: Stack) (h: s.halts): step^[timeCost _ h] s = .result (resultOf _ h) :=
+  (Nat.find_spec (halts_iff_halts₂.mp h)).elim λ _ h ↦
+    h.trans (congrArg _ (congrArg getResult h.symm))
+
+theorem timeCost_le_iff (s: Stack) (h: s.halts) {n: ℕ}: s.hasTimeCost n ↔ s.timeCost h ≤ n :=
+  ⟨ λ hn ↦ Nat.find_min' _ hn,
+    λ hn ↦ ⟨_, istep_result_le hn
+      (s.resultOf_timeCost_sound h)⟩⟩
+
+theorem resultOf_sound (s: Stack) (h: s.halts): s.hasResult (s.resultOf h) :=
+  ⟨_, resultOf_timeCost_sound _ h⟩
+
+def halts_step {s: Stack} (h: s.halts): s.step.halts :=
+  h.elim λ
+  | ⟨0, _⟩, h => ⟨(0, _), congr_arg step h⟩
+  | ⟨_+1, _⟩, h => ⟨(_, _), h⟩
+
+theorem halts_call (h: halts (execution ⟨m, .call dst src func is, p⟩ cs)):
+    halts (execution ⟨m.getms src, func.getD p, func.getD p⟩ []) :=
+  h.elim λ
+  | ⟨_, _⟩, h => (istep_of_call h).elim λ r h ↦ ⟨(_, r), h⟩
+
+theorem halts_subroutine (h: halts (execution ⟨m, .subroutine dst src func is, p⟩ cs)):
+    halts (execution ⟨m.getms src, func, func⟩ []) := halts_call (Program.subroutine_def ▸ h)
+
+theorem halts_recurse (h: halts (execution ⟨m, .recurse dst src is, p⟩ cs)):
+    halts (execution ⟨m.getms src, p, p⟩ []) := halts_call (Program.recurse_def ▸ h)
+
+theorem halts_call' (h: halts (execution ⟨m, .call dst src func is, p⟩ cs)):
+    halts (execution ⟨m.setms dst (resultOf _ (halts_call h)), is, p⟩ cs) :=
+  h.elim λ
+  | ⟨_, _⟩, h' =>
+    (hasResult_of_call ⟨_, h'⟩ (resultOf_sound _ (halts_call h))).elim
+      λ _ h' ↦ ⟨(_, _), h'⟩
+
+theorem halts_subroutine' (h: halts (execution ⟨m, .subroutine dst src func is, p⟩ cs)):
+    halts (execution ⟨m.setms dst (resultOf _ (halts_subroutine h)), is, p⟩ cs) :=
+  halts_call' (Program.subroutine_def ▸ h)
+
+theorem halts_recurse' (h: halts (execution ⟨m, .recurse dst src is, p⟩ cs)):
+    halts (execution ⟨m.setms dst (resultOf _ (halts_recurse h)), is, p⟩ cs) :=
+  halts_call' (Program.recurse_def ▸ h)
+
 end Stack
+
+namespace Thunk
+
+def localTimeCost: {is: Program} → {m: Memory} → {p: Program} → Stack.halts (.execution ⟨m, is, p⟩ []) → ℕ
+| .exit, _, _, _ => 1
+| .op _ _, _, _, h => localTimeCost (Stack.halts_step h) + 1
+| .branch _ _, _, _, h => localTimeCost (Stack.halts_step h) + 1
+| .subroutine _ _ _ _, _, _, h => localTimeCost (Stack.halts_subroutine' h) + 1
+| .recurse _ _ _, _, _, h => localTimeCost (Stack.halts_recurse' h) + 1
+
+theorem localTimeCost_le_size: {is: Program} → {m: Memory} → (h: Stack.halts (.execution ⟨m, is, p⟩ [])) → localTimeCost h ≤ is.size
+| .exit, _, _ => le_refl _
+| .op _ _, _, h => Nat.succ_le_succ (localTimeCost_le_size (Stack.halts_step h))
+| .branch inst _, m, h => Nat.succ_le_succ
+    (le_trans (localTimeCost_le_size (Stack.halts_step h))
+    (match inst.apply m with
+    | true => Nat.le_add_right _ _
+    | false => Nat.le_add_left _ _))
+| .subroutine _ _ _ _, _, h =>  Nat.succ_le_succ (le_add_left
+  (localTimeCost_le_size (Stack.halts_subroutine' h)))
+| .recurse _ _ _, _, h =>  Nat.succ_le_succ (localTimeCost_le_size (Stack.halts_recurse' h))
+
+def subroutineTimeCost: {is: Program} → {m: Memory} → {p: Program} → Stack.halts (.execution ⟨m, is, p⟩ []) → ℕ
+| .exit, _, _, _ => 0
+| .op _ _, _, _, h => subroutineTimeCost (Stack.halts_step h)
+| .branch _ _, _, _, h => subroutineTimeCost (Stack.halts_step h)
+| .subroutine _ _ _ _, _, _, h =>  subroutineTimeCost (Stack.halts_subroutine' h) + Stack.timeCost _ (Stack.halts_subroutine h)
+| .recurse _ _ _, _, _, h => subroutineTimeCost (Stack.halts_recurse' h)
+
+def recurseTimeCost: {is: Program} → {m: Memory} → {p: Program} → Stack.halts (.execution ⟨m, is, p⟩ []) → ℕ
+| .exit, _, _, _ => 0
+| .op _ _, _, _, h => recurseTimeCost (Stack.halts_step h)
+| .branch _ _, _, _, h => recurseTimeCost (Stack.halts_step h)
+| .subroutine _ _ _ _, _, _, h => recurseTimeCost (Stack.halts_subroutine' h)
+| .recurse _ _ _, _, _, h => recurseTimeCost (Stack.halts_recurse' h) + Stack.timeCost _ (Stack.halts_recurse h)
+
+theorem splitTimeCost:
+    {is: Program} → {m: Memory} → {p: Program} →
+    (h: Stack.halts (.execution ⟨m, is, p⟩ [])) →
+    Stack.hasTimeCost (.execution ⟨m, is, p⟩ []) (subroutineTimeCost h + recurseTimeCost h + localTimeCost h)
+| .exit, _, _, _ => ⟨_, rfl⟩
+| .op _ _, _, _, h => (splitTimeCost (Stack.halts_step h)).imp λ _ ↦
+  (congrArg₂ _ (Nat.add_succ _ _) rfl).trans
+| .branch _ _, _, _, h => (splitTimeCost (Stack.halts_step h)).imp λ _ ↦
+  (congrArg₂ _ (Nat.add_succ _ _) rfl).trans
+| .subroutine _ _ _ _, _, _, h =>
+  (splitTimeCost (Stack.halts_subroutine' h)).imp λ _ h' ↦
+  (congrArg₂ _ (((congrArg₂ _ (Nat.add_right_comm _ _ _) rfl).trans
+  (Nat.add_assoc _ _ _).symm).trans
+  (congrArg₂ _ (Nat.add_right_comm _ _ _) rfl)) rfl).trans
+  (Stack.istep_subroutine_result
+    (Stack.resultOf_timeCost_sound _ (Stack.halts_subroutine h))
+    h')
+| .recurse _ _ _, _, _, h =>
+  (splitTimeCost (Stack.halts_recurse' h)).imp λ _ h' ↦
+  (congrArg₂ _ (((congrArg₂ _ (Nat.add_assoc _ _ _).symm rfl).trans
+  (Nat.add_assoc _ _ _).symm).trans
+  (congrArg₂ _ (Nat.add_right_comm _ _ _).symm rfl)) rfl).trans
+  (Stack.istep_recurse_result
+    (Stack.resultOf_timeCost_sound _ (Stack.halts_recurse h))
+    h')
+
+end Thunk
 
 namespace Program
 
@@ -407,12 +518,24 @@ def haltsOn (p: Program) (inp: Memory): Prop := Stack.halts (.execution ⟨inp, 
 
 def hasResult (p: Program) (inp: Memory) (outp: Memory): Prop := Stack.hasResult (.execution ⟨inp, p, p⟩ []) outp
 
+
+
+def hasTimeCost (p: Program) (inp: Memory) (n: ℕ): Prop := Stack.hasTimeCost (.execution ⟨inp, p, p⟩ []) n
+
 @[simp] theorem hasResult_def: hasResult p inp = Stack.hasResult (.execution ⟨inp, p, p⟩ []) := rfl
 
 theorem hasResult_injOut {p: Program} {inp: Memory} {o₀ o₁: Memory}:
   p.hasResult inp o₀ → p.hasResult inp o₁ → o₀ = o₁ := Stack.hasResult_inj
 
 def timeCost (p: Program) {inp: Memory} (h: p.haltsOn inp): ℕ := Stack.timeCost _ h
+
+def localTimeCost (p: Program) {inp: Memory} (h: p.haltsOn inp): ℕ := Thunk.localTimeCost h
+def subroutineTimeCost (p: Program) {inp: Memory} (h: p.haltsOn inp): ℕ := Thunk.subroutineTimeCost h
+def recurseTimeCost (p: Program) {inp: Memory} (h: p.haltsOn inp): ℕ := Thunk.recurseTimeCost h
+
+theorem splitTimeCost {p: Program} {inp: Memory} (h: p.haltsOn inp):
+    p.hasTimeCost inp (p.subroutineTimeCost h + p.recurseTimeCost h + p.localTimeCost h) :=
+  Thunk.splitTimeCost _
 
 def result (p: Program) {inp: Memory} (h: p.haltsOn inp): Memory := Stack.resultOf _ h
 
