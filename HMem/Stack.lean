@@ -80,14 +80,6 @@ def size: Program → ℕ
 | some func, next => subroutine dst src func next
 | none, next => recurse dst src next
 
-@[simp] def setv (dst: Source) (b: Bool): Program → Program := op (.vop (λ _ ↦ b) dst finZeroElim)
-@[simp] def setm (dst: Source) (src: Memory): Program → Program := op (.const dst src)
-@[simp] def copyv (dst src: Source): Program → Program := op (.vop (λ f ↦ f 0) dst (λ (_: Fin 1) ↦ src))
-@[simp] def copy (dst src: Source): Program → Program := op (.mop .COPY dst src)
-@[simp] def move (dst src: Source): Program → Program := op (.mop .MOVE dst src)
-@[simp] def swap (dst src: Source): Program → Program := op (.mop .SWAP dst src)
-@[simp] def ifv (src: Source) (t: List (Program → Program)) (f: Program): Program := branch (.ifTrue (λ f ↦ f 0) (λ (_: Fin 1) ↦ src)) λ | true => build t | false => f
-
 def subroutine_def: subroutine dst src func next = call dst src (some func) next := rfl
 def recurse_def: recurse dst src next = call dst src none next := rfl
 

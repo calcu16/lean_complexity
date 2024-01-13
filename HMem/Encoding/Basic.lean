@@ -251,8 +251,4 @@ def getProgram [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (
     (getProgram f).hasResult (encode a) (encode (f a)) := h.has_result a
 
 end Encoding
-
-@[simp] def Program.subroutine' (dst src: Source) [Complexity.Encoding α Memory] [Complexity.Encoding β Memory] (f: α → β) [Complexity.Computable Encoding.Model f]: Program → Program :=
-  subroutine dst src (Encoding.getProgram f)
-
 end HMem

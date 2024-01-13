@@ -217,10 +217,7 @@ end Trace.TracedProgram
 
 namespace Program
 
-
-
 def sound (p: Program) [Trace.HasTracedProgram p] (f: α → β) (size: α → ℕ): Prop := ∀ a, p.traced.sound f size a (Complexity.encode a)
-
 
 theorem hasResult_of_soundHelper {p: Program} [Trace.HasTracedProgram p] {size: α → ℕ} (h: p.sound f size) (n: ℕ):
     ∀ a, n = size a → p.hasResult (Complexity.encode a) (Complexity.encode (f a)) :=
@@ -240,7 +237,7 @@ theorem halts_of_sound {p: Program} [Trace.HasTracedProgram p] {size: α → ℕ
 
 class HasTrace (f: α → β) where
   program: List (Program → Program)
-  hasTracedProgram: Trace.HasTracedProgram (Program.build program)
+  [hasTracedProgram: Trace.HasTracedProgram (Program.build program)]
   size: α → ℕ
   sound: (Program.build program).sound f size
 
