@@ -16,6 +16,9 @@ theorem Option.Forall_map: {o: Option α} → Option.Forall P (Option.map f o) =
 | some _ => rfl
 | none => rfl
 
+theorem Option.Forall_of_map (h: Option.Forall P (Option.map f o)): Option.Forall (P ∘ f) o :=
+  Option.Forall_map ▸ h
+
 theorem Option.Forall_bind: {o: Option α} → Option.Forall P (Option.bind o f) = Option.Forall (Option.Forall P ∘ f) o
 | some _ => rfl
 | none => rfl
@@ -52,7 +55,7 @@ namespace HMem.Trace
 
 namespace TracedProgram
 variable {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β}
-variable {γ: Type _} {δ: Type _} [enγ: Complexity.Encoding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} [hc: Complexity Encoding.Model fs]
+variable {γ: Type _} {δ: Type _} [enγ: Complexity.Encoding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} [hc: Complexity.Computable Encoding.Model fs]
 def soundInternal (size: α → ℕ) (a: α): TracedProgram f → Memory → Prop
 | exit, m => m = Complexity.encode (f a)
 | op inst next, m => next.soundInternal size a (inst.apply m)
@@ -280,8 +283,8 @@ theorem soundInternal_iff_soundInternal': soundInternal' (f := f) size tp fm ↔
 theorem soundInternal'_def: soundInternal' (f := f) size tp fm = ∀ a, (fm a).Forall (soundInternal size a tp) :=
   eq_iff_iff.mpr soundInternal_iff_soundInternal'
 
-theorem soundInternal'_of_sound: sound (f := f) tp size = soundInternal' size tp (some ∘ Complexity.encode) :=
-  soundInternal'_def (f := f) ▸ rfl
+theorem soundInternal'_of_sound: sound (f := f) tp size → soundInternal' size tp (some ∘ Complexity.encode) :=
+  soundInternal'_def (f := f) ▸ id
 
 end TracedProgram
 

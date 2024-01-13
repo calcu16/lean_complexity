@@ -201,6 +201,14 @@ theorem flatMap_none {f: α → Option β} {a: α} (h: f a = none) (g: CostFunct
 theorem flatMap_some {f: α → Option β} {a: α} {b: β} (h: f a = some b) (g: CostFunction β ℕ):
   (g.flatMap f) a = g b := by simp[flatMap, h]
 
+theorem flatMap_le_const {g: CostFunction β ℕ} (h: ∀ b, g b ≤ n) (f: α → Option β):
+    g.flatMap f ≤ n := λ a ↦
+  match ha:f a with
+  | some _ => le_of_eq_of_le (flatMap_some ha _) (h _)
+  | none => le_of_eq_of_le (flatMap_none ha _) (zero_le _)
+
+theorem nat_flatMap_le_nat (n: ℕ) (f: α → Option β):
+    (n:CostFunction β ℕ).flatMap f ≤ n := flatMap_le_const (λ _ ↦ le_refl _) _
 
 theorem flatMap_le_flatMap {x y: CostFunction β ℕ} (h: x ≤ y) (f: α → Option β):
     x.flatMap f ≤ y.flatMap f := λ a ↦
@@ -213,6 +221,7 @@ theorem flatMap_ale_flatMap {x y: CostFunction β ℕ} (h: x ≤≤ y) (f: α �
   match ha:f a with
   | none => flatMap_none ha x ▸ Nat.zero_le _
   | some _ => by simpa [add_def, mul_def, flatMap_some ha x, flatMap_some ha y] using hk _
+
 
 end CostFunction
 end Complexity

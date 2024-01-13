@@ -9,7 +9,7 @@ inductive TracedProgram {α: Type _} [Complexity.Encoding α Memory] {β: Type _
 | op (inst: OpInstruction) (next: TracedProgram f)
 | branch (inst: BranchInstruction) (next: Bool → TracedProgram f)
 | subroutine (dst src: Source) {γ: Type _} [enγ: Complexity.Encoding γ Memory] {δ: Type _} [enδ: Complexity.Encoding δ Memory]
-  (func: γ → δ) [h: Complexity Encoding.Model func] (next: TracedProgram f)
+  (fs: γ → δ) [h: Complexity.Computable Encoding.Model fs] (next: TracedProgram f)
 | recurse (dst src: Source) (next: TracedProgram f)
 
 namespace TracedProgram
@@ -28,23 +28,16 @@ variable {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.E
 @[simp] def ifv (src: Source) (pos: List (TracedProgram f  → TracedProgram f)) (neg: TracedProgram f): TracedProgram f := branch (.ifTrue (λ f ↦ f 0) (λ (_: Fin 1) ↦ src)) (λ | true => build pos | false => neg)
 
 @[match_pattern] def subroutine' (dst src: Source) {γ: Type _} (_hγ: Complexity.Encoding γ Memory) {δ: Type _} (_hδ: Complexity.Encoding δ Memory)
-    (func: γ → δ) (_h: Complexity Encoding.Model func) (next: TracedProgram f): TracedProgram f :=
-  subroutine dst src func next
+    (fs: γ → δ) (_h: Complexity.Computable Encoding.Model fs) (next: TracedProgram f): TracedProgram f :=
+  subroutine dst src fs next
 
 def toProgram: TracedProgram f → Program
 | exit => .exit
 | op inst next => .op inst next.toProgram
 | branch inst next => .branch inst (λ b ↦ toProgram (next b))
-| subroutine' dst src _ _ func _ next => .subroutine dst src (Encoding.getProgram func) next.toProgram
+| subroutine dst src fs next => .subroutine dst src (Encoding.getProgram fs) next.toProgram
 | recurse dst src next => .recurse dst src next.toProgram
 
-inductive Step (α: Type _) [Complexity.Encoding α Memory]
-| exit
-| op (inst: OpInstruction)
-| branch (inst: BranchInstruction)
-| subroutine (dst src: Source) {γ: Type _} [Complexity.Encoding γ Memory] {δ: Type _} [Complexity.Encoding δ Memory]
-  (func: γ → δ) [Complexity.Computable Encoding.Model func] (arg: γ)
-| recurse (dst src: Source) (arg: α)
 
 end TracedProgram
 end Trace

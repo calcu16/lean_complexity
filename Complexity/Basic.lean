@@ -54,6 +54,6 @@ def Computable.cost {m: Complexity.Model} [Complexity.Encoding α m.Data] [Compl
 end Complexity
 
 class Complexity {α: Type _} {β: Type _} (m: Complexity.Model) [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result]
-    (f: α → β) extends Complexity.Computable m f where
+    (f: α → β) [h: Complexity.Computable m f] where
   cost: Complexity.CostFunction α ℕ
-  cost_le: toComputable.cost ∈ Complexity.O cost
+  cost_le: h.cost ∈ Complexity.O cost
