@@ -136,8 +136,24 @@ theorem sound'_branch_next_false:
     sound' f size (.branch inst next) fm →
   (next false).sound' f size (Option.filter (Bool.not ∘ inst.apply) ∘ fm) := And.right
 
+theorem sound'_branch_next_true':
+    {b: Bool} → b = true → sound' f size (.branch inst next) fm →
+  (next b).sound' f size (Option.filter inst.apply ∘ fm)
+| _, rfl => sound'_branch_next_true
+
+theorem sound'_branch_next_false':
+    {b: Bool} → b = false → sound' f size (.branch inst next) fm →
+  (next b).sound' f size (Option.filter (Bool.not ∘ inst.apply) ∘ fm)
+| _, rfl => sound'_branch_next_false
+
 @[simp] def sound'_subroutine_arg (_: sound' f size (.subroutine dst src fs next) fm): α → Option γ :=
   flip Option.bind (Complexity.decode _ ∘ flip Memory.getms src) ∘ fm
+
+theorem sound_subroutine_mem_arg (h: sound' f size (subroutine dst src fs next) fm):
+    ∀ a, ∀ m ∈ fm a, m.getms src ∈ Option.map Complexity.encode (sound'_subroutine_arg h a) :=
+  λ _ _ hm ↦ (h.left _ _ hm).elim λ _ heq ↦
+    heq ▸ Option.mem_map_of_mem _
+      (Option.mem_bind_of_mem hm (Option.get_mem _))
 
 theorem sound'_subroutine_next:
     sound' f size (.subroutine dst src fs next) fm →
@@ -235,6 +251,10 @@ theorem halts_of_sound {p: Program} [Trace.HasTracedProgram p] {size: α → ℕ
     p.haltsOn (Complexity.encode a) :=
   (p.hasResult_of_sound h a).elim λ _ hm => ⟨(_, _), hm⟩
 
+
+def timeCost' (p: Program) [Trace.HasTracedProgram p] (h: p.sound f sz): Complexity.CostFunction α ℕ :=
+  λ a ↦ p.timeCost (p.halts_of_sound h a)
+
 class HasTrace (f: α → β) where
   program: List (Program → Program)
   [hasTracedProgram: Trace.HasTracedProgram (Program.build program)]
@@ -246,6 +266,11 @@ instance [tr: HasTrace f]: Trace.HasTracedProgram (Program.build tr.program) := 
 instance {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β} [tr: HasTrace f]: Complexity.Computable Encoding.Model f where
   program := .build tr.program
   has_result := Program.hasResult_of_sound tr.sound
+
+
+-- theorem blah [HasTracedProgram (.branch inst next)] [HasTracedProgram (next true)] [HasTracedProgram (next false)]:
+--   Trace.TracedProgram.sound f size (.branch inst next).tracedProgram m =
+--     Trace.TracedProgram.sound f size (next )
 
 end Program
 

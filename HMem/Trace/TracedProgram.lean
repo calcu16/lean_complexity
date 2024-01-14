@@ -36,6 +36,8 @@ class HasTracedProgram (p: Program) where
   tracedProgram: TracedProgram
   tracedProgramMatches: tracedProgram.toProgram = p
 
+instance (tp: TracedProgram): HasTracedProgram tp.toProgram := ⟨ _, rfl ⟩
+
 attribute [simp] HasTracedProgram.tracedProgram
 end Trace
 

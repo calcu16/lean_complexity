@@ -56,4 +56,4 @@ end Complexity
 class Complexity {α: Type _} {β: Type _} (m: Complexity.Model) [Complexity.Encoding α m.Data] [Complexity.Encoding β m.Result]
     (f: α → β) [h: Complexity.Computable m f] where
   cost: Complexity.CostFunction α ℕ
-  cost_le: h.cost ∈ Complexity.O cost
+  cost_le: h.cost ≤ cost
