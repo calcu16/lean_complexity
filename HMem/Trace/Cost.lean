@@ -1,5 +1,6 @@
 import HMem.Trace.TracedProgram
 import HMem.Trace.Sound
+import Complexity.Asymptotic
 
 theorem Option.bind_of_none (h: o = none): Option.bind o f = none := h ▸ rfl
 
@@ -214,12 +215,69 @@ class HasCostedProgram (p: Program) extends HasTracedProgram p where
 
 end Trace
 
-class Program.HasCost (f: α → β) extends Program.HasTrace f where
+namespace Program
+class HasCost (f: α → β) where
+  program: List (Program → Program)
   [hasCostedProgram: Trace.HasCostedProgram (Program.build program)]
+  size: α → ℕ
+  sound: (Program.build program).sound f size
   cost: Complexity.CostFunction α ℕ
-  cost_le: (Program.build program).timeCost' sound ≲ cost
+  cost_le: (Program.build program).timeCost' sound ∈ O(cost)
+
+instance [h: HasCost f]: HasTrace f where
+  program := h.program
+  hasTracedProgram := h.hasCostedProgram.toHasTracedProgram
+  size := h.size
+  sound := h.sound
+
+def costed (p: Program) [h: Trace.HasCostedProgram p]: Trace.CostedProgram := h.costedProgram
+
+@[simp] theorem costedMatchesTraced (p: Program) [h: Trace.HasCostedProgram p]:
+    p.costed.toTracedProgram = p.traced := h.costedProgramMatches
+
+@[simp] theorem costedMatches (p: Program) [h: Trace.HasCostedProgram p]:
+    p.costed.toProgram = p := (congrArg _ h.costedProgramMatches).trans h.tracedProgramMatches
+
+@[simp] theorem costedMatches' (p: Program) [h: Trace.HasCostedProgram p]:
+    p.costed.toTracedProgram.toProgram = p := (congrArg _ h.costedProgramMatches).trans h.tracedProgramMatches
+
+theorem costed_sound {p: Program} [Trace.HasCostedProgram p] (h: p.sound f sz):
+    (p.costed.toTracedProgram.toProgram).sound f sz := p.costedMatchesTraced ▸ h
+
+theorem costed_sound' {p: Program} [Trace.HasCostedProgram p] (h: p.sound f sz):
+    (p.costed.toTracedProgram).sound' f sz (some ∘ Complexity.encode) :=
+  p.costedMatchesTraced ▸ Trace.TracedProgram.sound'_of_sound λ _ _ hm ↦
+    (Option.some.inj (Option.mem_def.mp hm)) ▸ h _
+
+def localTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): Complexity.CostFunction α ℕ :=
+  p.costed.localTimeCost (costed_sound' h)
+
+def subroutineTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): Complexity.CostFunction α ℕ :=
+  p.costed.subroutineTimeCost (costed_sound' h)
+
+def recurseTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): Complexity.CostFunction α ℕ :=
+  p.costed.recurseTimeCost (costed_sound h) (costed_sound' h)
+
+def localTimeCost_const {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): localTimeCost h ∈ O(1) := ⟨
+    p.size, 0,
+    by
+      apply le_of_le_of_eq _
+      apply (mul_one _).symm
+      apply le_of_le_of_eq
+      apply Trace.CostedProgram.localTimeCostInternal_le_size (costed_sound' h)
+      rw [costedMatches] ⟩
+
+theorem splitTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz):
+    p.timeCost' h ≤  p.subroutineTimeCost h + p.recurseTimeCost h + p.localTimeCost h := by
+  intro a
+  apply le_trans
+  exact (Stack.timeCost_le_iff _ (Program.halts_of_sound h _)).mp (p.costedMatches ▸ p.costed.splitTimeCost (costed_sound h) (costed_sound' h) a _ (Option.mem_some_iff.mpr rfl))
+  exact le_refl _
+
+
+
+end Program
 
 instance [h: Program.HasCost f]: Complexity Encoding.Model f where
   cost_le := h.cost_le.le_bound
-
 end HMem

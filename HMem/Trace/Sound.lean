@@ -267,13 +267,5 @@ instance {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.E
   program := .build tr.program
   has_result := Program.hasResult_of_sound tr.sound
 
-
--- theorem blah [HasTracedProgram (.branch inst next)] [HasTracedProgram (next true)] [HasTracedProgram (next false)]:
---   Trace.TracedProgram.sound f size (.branch inst next).tracedProgram m =
---     Trace.TracedProgram.sound f size (next )
-
 end Program
-
-
-
 end HMem
