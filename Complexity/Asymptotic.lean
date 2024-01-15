@@ -6,7 +6,7 @@ structure ALE (x y: CostFunction α ℕ) where
   k: ℕ
   ale: x ≤ m * y + k
 
-notation:50 f " ∈ O( " g ")" => ALE f g
+notation:50 f " ∈ O(" g ")" => ALE f g
 
 def ale_of_le {x y: CostFunction α ℕ} (h: x ≤ y): x ∈ O(y) := ⟨1, 0, le_of_le_of_eq h (one_mul _).symm⟩
 
