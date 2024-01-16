@@ -3,28 +3,67 @@ import HMem.Encoding.Emulator
 import HMem.Complexity.Basic
 import Complexity.Basic
 
+@[simp] theorem Option.bind_comp_some:
+    (λ a ↦ Option.bind a f) ∘ (some ∘ g) = f ∘ g :=
+  funext λ _ ↦ rfl
+
+@[simp] theorem id_def: (λ (a: α) ↦ a) = id := rfl
+
+theorem lambda_comp {f: α → β}: (λ a ↦ f a) ∘ g = λ a ↦ (f (g a)) := funext λ _ ↦ rfl
+
+@[simp] theorem Complexity.decode_comp_encode
+    {α: Type _} [Setoid Data] [Encoding α Data]:
+    Complexity.decode α (Data := Data) ∘ Complexity.encode (α := α) (Data := Data) = some :=
+  funext λ _ ↦ decode_inv _
+
+@[simp] theorem Complexity.CostFunction.flatMap_some':
+  Complexity.CostFunction.flatMap Option.some g = g := rfl
+
+@[simp] theorem Complexity.CostFunction.flatMap_lambda_some {f: α → β}:
+  Complexity.CostFunction.flatMap (λ a ↦ Option.some (f a)) g = g ∘ f := rfl
+
+/-
+case y
+h₀ : Complexity Encoding.Model (↿Memory.getmp) (List.length ∘ Prod.snd)
+h₁ : Complexity Encoding.Model Memory.getv 1
+⊢ (fun a => Complexity.ALE.bound Complexity.cost_ale (Memory.getmp a.1 a.2)) ∈ O(fun a => List.length a.2)
+-/
+
+
+
 namespace HMem.Complexity
-instance: Program.HasTrace Memory.getv where
+instance: Program.HasCost Memory.getv 1 where
   program := [
     .setm 1 0,
     .setm 2 0
   ]
   size _ := 0
   sound _ := by simp
+  cost_ale := Program.nonRecursiveCost (Complexity.ALE.const_ale _ _)
 
-instance: Program.HasTrace ↿Memory.getm where
+instance [h₀: Complexity Encoding.Model ↿Memory.getmp (List.length ∘ Prod.snd)] [h₁: Complexity Encoding.Model Memory.getv 1]:
+    Program.HasCost ↿Memory.getvp (List.length ∘ Prod.snd) where
+  program := [
+    .costedSubroutine 0 0 ↿Memory.getmp (List.length ∘ Prod.snd),
+    .costedSubroutine 0 0 Memory.getv 1
+  ]
+  size _ := 0
+  sound
+  | (_, _) => by simp
+  cost_ale := by
+    refine Program.nonRecursiveCost (Complexity.ALE.add_ale (Complexity.ALE.add_ale
+      (Complexity.ALE.const_ale _ _)
+      ?y)
+      ?z) <;>
+    simp [Complexity.CostFunction.flatMap, flip, lambda_comp]
+    apply Complexity.ALE.const_ale
+    apply Complexity.ALE.refl
+
+instance: Program.HasCost ↿Memory.getm 1 where
   program := [ .move .nil (.imm false (.idx 2 0)) ]
   size _ := 0
   sound | (_, _) => by simp
-
-instance [Complexity.Computable Encoding.Model ↿Memory.getmp] [Complexity.Computable Encoding.Model Memory.getv]:
-    Program.HasTrace ↿Memory.getvp where
-  program := [
-    .subroutine' 0 0 ↿Memory.getmp,
-    .subroutine' 0 0 Memory.getv
-  ]
-  size _ := 0
-  sound | (_, _) => by simp [and_assoc]
+  cost_ale := Program.nonRecursiveCost (Complexity.ALE.const_ale _ _)
 
 instance: Program.HasTrace ↿Memory.getmp where
   program := [

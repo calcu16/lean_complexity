@@ -46,11 +46,50 @@ def add_ale (hxz: x ∈ O(z)) (hyz: y ∈ O(z)): x + y ∈ O(z) where
       CostFunction.const_add_const _ _ ▸
       rfl)
 
+def ale_add_left (h: x ∈ O(z)): x ∈ O(y + z) where
+  m := h.m
+  k := h.k
+  ale := le_trans
+    h.ale
+    (add_le_add_right
+      (mul_le_mul
+        (le_refl _)
+        (le_add_left (le_refl _))
+        (zero_le _)
+        (zero_le _)) _)
+
+def ale_add_right (h: x ∈ O(y)): x ∈ O(y + z) where
+  m := h.m
+  k := h.k
+  ale := le_trans
+    h.ale
+    (add_le_add_right
+      (mul_le_mul
+        (le_refl _)
+        (le_add_right (le_refl _))
+        (zero_le _)
+        (zero_le _)) _)
+
+def add_ale_add (h₀: a ∈ O(b)) (h₁: x ∈ O(y)): a + x ∈ O(b + y) :=
+  add_ale (ale_add_right h₀) (ale_add_left h₁)
+
 def const_ale (n: ℕ) (f: CostFunction α ℕ): n ∈ O(f) where
   m := 0
   k := n
   ale := le_add_left (le_refl _)
 
+def bound_ale_self (h: x ∈ O(y)): h.bound ∈ O(y) := ⟨_, _, le_refl _⟩
+
+def bound_ale_trans (hy: x ∈ O(y)) (hz: y ∈ O(z)): hy.bound ∈ O(z) := trans (bound_ale_self _) hz
+
+def flatMap_ale_flatMap {x y: CostFunction β ℕ} (h: x ∈ O(y)) (f: α → Option β):
+    x.flatMap f ∈ O(y.flatMap f) where
+  m := h.m
+  k := h.k
+  ale a :=
+    match ha:f a with
+    | none => CostFunction.flatMap_none ha x ▸ Nat.zero_le _
+    | some _ => by simpa [CostFunction.add_def, CostFunction.mul_def, CostFunction.flatMap_some ha x, CostFunction.flatMap_some ha y] using h.ale _
 
 end ALE
 

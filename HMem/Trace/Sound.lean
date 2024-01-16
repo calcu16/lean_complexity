@@ -23,6 +23,8 @@ namespace HMem
 variable {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β}
 
 namespace Trace.TracedProgram
+
+section
 variable {γ: Type _} {δ: Type _} [enγ: Complexity.Encoding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} [hc: Complexity.Computable Encoding.Model fs]
 
 def sound (f: α → β) (size: α → ℕ) (a: α): TracedProgram → Memory → Prop
@@ -38,6 +40,29 @@ def sound (f: α → β) (size: α → ℕ) (a: α): TracedProgram → Memory �
     m.getms src = Complexity.encode arg ∧
     size arg < size a ∧
     next.sound f size a (m.setms dst (Complexity.encode (f arg)))
+
+def sound' (f: α → β) (size: α → ℕ): TracedProgram → (α → Option Memory) → Prop
+| exit, fm => ∀ a, ∀ m ∈ (fm a), m = Complexity.encode (f a)
+| op inst next, fm => next.sound' f size (Option.map inst.apply ∘ fm)
+| branch inst next, fm =>
+  (next true).sound' f size (Option.filter inst.apply ∘ fm) ∧
+  (next false).sound' f size (Option.filter (Bool.not ∘ inst.apply) ∘ fm)
+| subroutine' dst src enγ _ fs _ next, fm =>
+  (∀ a, ∀ m ∈ (fm a), ∃ (hm: Option.isSome (Complexity.decode (en := enγ) (m.getms src))), m.getms src = Complexity.encode (Option.get _ hm)) ∧
+  next.sound' f size (flip Option.bind
+    (λ m ↦ (Complexity.decode _ (m.getms src)).map
+      (m.setms dst ∘ Complexity.encode ∘ fs)) ∘
+    fm)
+| recurse dst src next, fm =>
+  (∀ a, ∀ m ∈ (fm a), ∃ (hm: Option.isSome (Complexity.decode α (m.getms src))), m.getms src = Complexity.encode (Option.get _ hm)) ∧
+  (∀ a, ∀ m ∈ (fm a), ∃ arg ∈ Complexity.decode α (m.getms src), size arg < size a) ∧
+  next.sound' f size (flip Option.bind
+    (λ m ↦ (Complexity.decode α (m.getms src)).map
+      (m.setms dst ∘ Complexity.encode ∘ f)) ∘
+    fm)
+end
+
+variable {γ: Type _} {δ: Type _} [enγ: Complexity.Encoding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} {hc: Complexity.Computable Encoding.Model fs}
 
 theorem sound_branch_eq (h: inst.apply m = b):
     sound f size a (branch inst next) m = sound f size a (next b) m := h ▸ rfl
@@ -104,26 +129,6 @@ theorem hasResultInternal
   | _, ⟨hm, hsize, h⟩ => Stack.hasResult_recurse
     (hm.symm ▸ ih _ hsize)
     (hasResultInternal ih h)
-
-def sound' (f: α → β) (size: α → ℕ): TracedProgram → (α → Option Memory) → Prop
-| exit, fm => ∀ a, ∀ m ∈ (fm a), m = Complexity.encode (f a)
-| op inst next, fm => next.sound' f size (Option.map inst.apply ∘ fm)
-| branch inst next, fm =>
-  (next true).sound' f size (Option.filter inst.apply ∘ fm) ∧
-  (next false).sound' f size (Option.filter (Bool.not ∘ inst.apply) ∘ fm)
-| subroutine' dst src enγ _ fs _ next, fm =>
-  (∀ a, ∀ m ∈ (fm a), ∃ (hm: Option.isSome (Complexity.decode (en := enγ) (m.getms src))), m.getms src = Complexity.encode (Option.get _ hm)) ∧
-  next.sound' f size (flip Option.bind
-    (λ m ↦ (Complexity.decode _ (m.getms src)).map
-      (m.setms dst ∘ Complexity.encode ∘ fs)) ∘
-    fm)
-| recurse dst src next, fm =>
-  (∀ a, ∀ m ∈ (fm a), ∃ (hm: Option.isSome (Complexity.decode α (m.getms src))), m.getms src = Complexity.encode (Option.get _ hm)) ∧
-  (∀ a, ∀ m ∈ (fm a), ∃ arg ∈ Complexity.decode α (m.getms src), size arg < size a) ∧
-  next.sound' f size (flip Option.bind
-    (λ m ↦ (Complexity.decode α (m.getms src)).map
-      (m.setms dst ∘ Complexity.encode ∘ f)) ∘
-    fm)
 
 theorem sound'_op_next:
     sound' f size (.op inst next) fm → sound' f size next (Option.map inst.apply ∘ fm) := id
