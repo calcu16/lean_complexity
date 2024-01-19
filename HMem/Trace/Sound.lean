@@ -2,6 +2,13 @@ import HMem.Trace.TracedProgram
 
 @[simp] theorem Option.filter_none : Option.filter f none = none := rfl
 
+@[simp] theorem Option.filter_eq_none (ho: o = some a) (hf: f a = false):
+    Option.filter f o = none :=
+  (congrArg _ ho).trans (if_neg (Bool.not_eq_true _ ▸ hf))
+
+@[simp] theorem Option.filter_not_eq_none (ho: o = some a) (hf: f a = true):
+    Option.filter (not ∘ f) o = none := Option.filter_eq_none ho (congrArg Bool.not hf)
+
 @[simp] theorem Option.filter_eq_some': {x: Option α} → x.filter f = some b ↔ x = some b ∧ f b
 | .none => ⟨ flip absurd Option.noConfusion, And.left ⟩
 | .some b => by simpa [Option.filter, And.comm (a := Eq b _)] using λ heq ↦ heq ▸ ⟨id, id⟩
@@ -169,6 +176,9 @@ theorem sound'_subroutine_next:
 
 @[simp] def sound'_recurse_arg (_: sound' f size (.recurse dst src next) fm): α → Option α :=
     flip Option.bind (Complexity.decode _ ∘ flip Memory.getms src) ∘ fm
+
+theorem sound'_recurse_arg_size (h: sound' f sz (.recurse dst src next) fm): ∀ arg ∈ sound'_recurse_arg h a, sz arg < sz a :=
+  Option.forall_mem_bind.mpr λ _ hm _ hm' ↦ (h.right.left a _ hm).elim λ _ h ↦ lt_of_eq_of_lt (congrArg _ (Option.some.inj (hm'.symm.trans h.left))) h.right
 
 theorem sound'_recurse_next:
     sound' f size (.recurse dst src next) fm →

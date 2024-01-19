@@ -29,13 +29,15 @@ instance: NatCast (CostFunction α ℕ) where
 instance [Inhabited α]: NeZero (1:CostFunction α ℕ) where
   out h := one_ne_zero' ℕ (congrFun h default)
 
-instance: LE (CostFunction α ℕ) where
+instance [LE β]: LE (CostFunction α β) where
   le x y := ∀ a, x a ≤ y a
 
-instance: CanonicallyOrderedAddCommMonoid (CostFunction α ℕ) where
+instance [PartialOrder β]: PartialOrder (CostFunction α β) where
   le_refl _ _ := le_refl _
   le_antisymm _ _ hab hba := funext λ _ ↦ le_antisymm (hab _) (hba _)
   le_trans _ _ _ hab hbc _ := le_trans (hab _) (hbc _)
+
+instance: CanonicallyOrderedAddCommMonoid (CostFunction α ℕ) where
   bot := 0
   bot_le _ _ := bot_le
   add x y a := (x a) + (y a)
@@ -65,20 +67,47 @@ instance: OrderedCommSemiring (CostFunction α ℕ) where
 instance: OrderedCancelAddCommMonoid (CostFunction α ℕ) where
   le_of_add_le_add_left _ _ _ h _ := le_of_add_le_add_left (h _)
 
+instance [Lattice β]: Lattice (CostFunction α β) where
+  sup x y a := x a ⊔ y a
+  inf x y a := x a ⊓ y a
+  le_sup_left _ _ _ := le_sup_left
+  le_sup_right _ _ _ := le_sup_right
+  sup_le _ _ _ hac hbc _ := sup_le (hac _) (hbc _)
+  inf_le_left _ _ _ := inf_le_left
+  inf_le_right _ _ _ := inf_le_right
+  le_inf _ _ _ hab hac _ := le_inf (hab _) (hac _)
+
 theorem add_def {x y: CostFunction α ℕ}: (x + y) a = x a + y a := rfl
 theorem mul_def {x y: CostFunction α ℕ}: (x * y) a = x a * y a := rfl
 theorem mul_pos {x y: CostFunction α ℕ} (hx: 1 ≤ x) (hy: 1 ≤ y): 1 ≤ x * y := λ _ ↦ Nat.mul_pos (hx _) (hy _)
+theorem sup_def {x y: CostFunction α ℕ}: (x ⊔ y) a = x a ⊔ y a := rfl
+theorem inf_def {x y: CostFunction α ℕ}: (x ⊓ y) a = x a ⊓ y a := rfl
 theorem le_mul_of_pos_right {x y: CostFunction α ℕ} (hy: 1 ≤ y): x ≤ x * y := λ _ ↦ Nat.le_mul_of_pos_right (hy _)
 
 theorem natZero_mul (x: CostFunction α ℕ): (0:ℕ) * x = 0 := funext λ _ ↦ zero_mul _
 theorem natOne_mul (x: CostFunction α ℕ): (1:ℕ) * x = x := funext λ _ ↦ one_mul _
 theorem const_add_const (a b: ℕ): ((a + b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) + b := funext λ _ ↦ rfl
 theorem const_mul_const (a b: ℕ): ((a * b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) * b := funext λ _ ↦ rfl
+theorem const_sup_const (a b: ℕ): ((a ⊔ b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) ⊔ b := funext λ _ ↦ rfl
+theorem const_inf_const (a b: ℕ): ((a ⊓ b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) ⊓ b := funext λ _ ↦ rfl
 
 def mul' (x y: CostFunction α ℕ): CostFunction α ℕ := (x + 1) * (y + 1)
 
 theorem mul'_le_mul' {a x b y: CostFunction α ℕ} (hax: a ≤ x) (hby: b ≤ y): mul' a b ≤ mul' x y :=
   mul_le_mul (add_le_add_right hax _) (add_le_add_right hby _) (zero_le _) (zero_le _)
+
+def add_eq_sup {x y: CostFunction α ℕ} (h: ∀ a, x a = 0 ∨ y a = 0): x + y = x ⊔ y :=
+  funext λ _ ↦ (h _).elim
+    (λ h ↦
+      (((congrArg₂ _ h rfl).trans
+      (zero_add _)).trans
+      (Nat.zero_max _).symm).trans
+      (congrArg₂ _ h.symm rfl))
+    λ h ↦
+      (((congrArg₂ _ rfl h).trans
+      (add_zero _)).trans
+      (Nat.max_zero _).symm).trans
+      (congrArg₂ _ rfl h.symm)
 
 def flatMap (f: α → Option β) (g: CostFunction β ℕ): CostFunction α ℕ := λ a ↦
   match f a with
@@ -90,6 +119,12 @@ theorem flatMap_none {f: α → Option β} {a: α} (h: f a = none) (g: CostFunct
 
 theorem flatMap_some {f: α → Option β} {a: α} {b: β} (h: f a = some b) (g: CostFunction β ℕ):
   (g.flatMap f) a = g b := by simp[flatMap, h]
+
+theorem flatMap_le_apply {f: α → Option β} {g: CostFunction β ℕ} {g': CostFunction α ℕ} {a: α}
+    (h: ∀ b ∈ f a, g b ≤ g' a): (g.flatMap f) a ≤ g' a :=
+  match ha: f a with
+  | some _ => le_of_eq_of_le (flatMap_some ha _) (h _ ha)
+  | none => le_of_eq_of_le (flatMap_none ha _) (zero_le _)
 
 theorem flatMap_le_const {g: CostFunction β ℕ} (h: ∀ b, g b ≤ n) (f: α → Option β):
     g.flatMap f ≤ n := λ a ↦

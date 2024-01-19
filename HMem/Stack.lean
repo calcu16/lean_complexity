@@ -76,6 +76,13 @@ def size: Program → ℕ
 | subroutine _ _ func next => size func + size next + 1
 | recurse _ _ next => size next + 1
 
+def maxRecurse: Program → ℕ
+| exit => 0
+| op _ next => maxRecurse next
+| branch _ next => max (maxRecurse (next true)) (maxRecurse (next false))
+| subroutine _ _ _ next => maxRecurse next
+| recurse _ _ next => maxRecurse next + 1
+
 @[match_pattern] def call (dst src: Source): Option Program → Program → Program
 | some func, next => subroutine dst src func next
 | none, next => recurse dst src next

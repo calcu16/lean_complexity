@@ -39,7 +39,7 @@ instance: Program.HasCost Memory.getv 1 where
   ]
   size _ := 0
   sound _ := by simp
-  cost_ale := Program.nonRecursiveCost (Complexity.ALE.const_ale _ _)
+  cost_ale := Program.nonRecursiveCompexity (Complexity.ALE.const_ale _ _)
 
 instance [h₀: Complexity Encoding.Model ↿Memory.getmp (List.length ∘ Prod.snd)] [h₁: Complexity Encoding.Model Memory.getv 1]:
     Program.HasCost ↿Memory.getvp (List.length ∘ Prod.snd) where
@@ -51,7 +51,7 @@ instance [h₀: Complexity Encoding.Model ↿Memory.getmp (List.length ∘ Prod.
   sound
   | (_, _) => by simp
   cost_ale := by
-    refine Program.nonRecursiveCost (Complexity.ALE.add_ale (Complexity.ALE.add_ale
+    refine Program.nonRecursiveCompexity (Complexity.ALE.add_ale (Complexity.ALE.add_ale
       (Complexity.ALE.const_ale _ _)
       ?y)
       ?z) <;>
@@ -63,9 +63,9 @@ instance: Program.HasCost ↿Memory.getm 1 where
   program := [ .move .nil (.imm false (.idx 2 0)) ]
   size _ := 0
   sound | (_, _) => by simp
-  cost_ale := Program.nonRecursiveCost (Complexity.ALE.const_ale _ _)
+  cost_ale := Program.nonRecursiveCompexity (Complexity.ALE.const_ale _ _)
 
-instance: Program.HasTrace ↿Memory.getmp where
+instance: Program.HasCost ↿Memory.getmp (List.length ∘ Prod.snd) where
   program := [
     .ifv 2 [
       .move 1 (.imm false (.idx 5 0)),
@@ -77,6 +77,7 @@ instance: Program.HasTrace ↿Memory.getmp where
   size | (_, as) => as.length
   sound
   | (_, as) => by cases as <;> simp
+  cost_ale := Program.simpleLoopComplexity (Complexity.ALE.const_ale _ _) rfl
 
 instance [Complexity.Computable Encoding.Model ↿Memory.getvp] [Complexity.Computable Encoding.Model ↿(@List.cons Bool)]:
   Program.HasTrace ↿Source.get where

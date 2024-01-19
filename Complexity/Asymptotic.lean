@@ -18,6 +18,9 @@ def bound (h: x ∈ O(y)): CostFunction α ℕ := h.m * y + h.k
 
 theorem le_bound (h: x ∈ O(y)): x ≤ h.bound := h.ale
 
+theorem le_zero_bound (h: x ∈ O(0)): x ≤ h.k :=
+  le_of_le_of_eq h.le_bound ((congrArg₂ _ (mul_zero _) rfl).trans (zero_add _))
+
 def refl: x ∈ O(x) := ale_of_le (le_refl _)
 
 def trans (hxy: x ∈ O(y)) (hyz: y ∈ O(z)): x ∈ O(z) where
@@ -32,6 +35,16 @@ def trans (hxy: x ∈ O(y)) (hyz: y ∈ O(z)): x ∈ O(z) where
       (add_assoc _ _ _))
 
 def ale_of_le_of_ale (hxy: x ≤ y) (hyz: y ∈ O(z)): x ∈ O(z) := trans (ale_of_le hxy) hyz
+
+def add_ale_sup: x + y ∈ O(x ⊔ y) where
+  m := 2
+  k := 0
+  ale _ := le_of_le_of_eq (add_le_add le_sup_left le_sup_right) (two_mul _).symm
+
+def sup_ale_add: x ⊔ y ∈ O(x + y) where
+  m := 1
+  k := 0
+  ale _ := le_of_le_of_eq (sup_le (Nat.le_add_right _ _) (Nat.le_add_left _ _)) (one_mul _).symm
 
 def add_ale (hxz: x ∈ O(z)) (hyz: y ∈ O(z)): x + y ∈ O(z) where
   m := hxz.m + hyz.m
@@ -70,8 +83,13 @@ def ale_add_right (h: x ∈ O(y)): x ∈ O(y + z) where
         (zero_le _)
         (zero_le _)) _)
 
+section -- TODO: tighten
 def add_ale_add (h₀: a ∈ O(b)) (h₁: x ∈ O(y)): a + x ∈ O(b + y) :=
   add_ale (ale_add_right h₀) (ale_add_left h₁)
+
+def sup_ale_sup (h₀: a ∈ O(b)) (h₁: x ∈ O(y)): a ⊔ x ∈ O(b ⊔ y) :=
+  (sup_ale_add.trans (add_ale_add h₀ h₁)).trans add_ale_sup
+end
 
 def const_ale (n: ℕ) (f: CostFunction α ℕ): n ∈ O(f) where
   m := 0
