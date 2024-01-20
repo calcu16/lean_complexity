@@ -98,6 +98,20 @@ instance: Trace.HasCostedProgram (Program.build (.ifv src pos'::neg')) where
     | true => Program.costedMatches _
     | false => Program.costedMatches _)
 
+@[simp] def Program.ifOp₂ (op: Bool → Bool → Bool) (lhs rhs: Source) (t: List (Program → Program)) (f: Program): Program := branch (.ifTrue (λ f ↦ op (f 0) (f 1)) (![lhs, rhs])) λ | true => build t | false => f
+@[simp] def Trace.TracedProgram.ifOp₂ (op: Bool → Bool → Bool) (lhs rhs: Source) (t: TracedProgram) (f: TracedProgram): TracedProgram := branch (.ifTrue (λ f ↦ op (f 0) (f 1)) (![lhs, rhs]))  λ | true => t | false => f
+@[simp] def Trace.CostedProgram.ifOp₂ (op: Bool → Bool → Bool) (lhs rhs: Source) (t: CostedProgram) (f: CostedProgram): CostedProgram := branch (.ifTrue (λ f ↦ op (f 0) (f 1)) (![lhs, rhs])) λ | true => t | false => f
+instance: Trace.HasTracedProgram (Program.build (.ifOp₂ op lhs rhs pos::neg)) where
+  tracedProgram := .ifOp₂ op lhs rhs (Program.build pos).traced (Program.build neg).traced
+  tracedProgramMatches := congrArg (Program.branch _) (funext λ
+    | true => Program.tracedMatches _
+    | false => Program.tracedMatches _)
+instance: Trace.HasCostedProgram (Program.build (.ifOp₂ op lhs rhs pos'::neg')) where
+  costedProgram := .ifOp₂ op lhs rhs (Program.build pos').costed (Program.build neg').costed
+  costedProgramMatches := congrArg (Program.branch _) (funext λ
+    | true => Program.costedMatches _
+    | false => Program.costedMatches _)
+
 variable {γ: Type _} [Complexity.Encoding γ Memory] {δ: Type _} [Complexity.Encoding δ Memory] {fs: γ → δ} [Complexity.Computable Encoding.Model fs]
 @[simp] def Program.subroutine' (dst src: Source) (fs: γ → δ) [Complexity.Computable Encoding.Model fs]: Program → Program :=
   Program.subroutine dst src (Encoding.getProgram fs)

@@ -237,9 +237,8 @@ theorem zero_def: (0:Memory) = ⟦.leaf⟧ := rfl
 @[simp] theorem zero_getm: getm 0 b = 0 := rfl
 @[simp] theorem one_def: 1 = mk true 0 0 := rfl
 
-
-@[simp] theorem mk_injEq: (mk v₀ f₀ t₀ = mk v₁ f₁ t₁) = (v₀ = v₁ ∧ f₀ = f₁ ∧ t₀ = t₁) :=
-  eq_iff_iff.mpr ⟨
+@[simp] theorem mk_inj: (mk v₀ f₀ t₀ = mk v₁ f₁ t₁) ↔ (v₀ = v₁ ∧ f₀ = f₁ ∧ t₀ = t₁) :=
+  ⟨
     λ h ↦ ⟨
       getv_mk (v := v₀) ▸ getv_mk (v := v₁) ▸ congrArg getv h,
       getm_mk_f (f := f₀) ▸ getm_mk_f (f := f₁) ▸ congrArg₂ getm h (Eq.refl false),
@@ -247,6 +246,9 @@ theorem zero_def: (0:Memory) = ⟦.leaf⟧ := rfl
     λ h ↦ inj (getv_mk ▸ getv_mk ▸ h.left) (funext λ
     | false => getm_mk_f ▸ getm_mk_f ▸ h.right.left
     | true => getm_mk_t ▸ getm_mk_t ▸ h.right.right)⟩
+
+@[simp] theorem mk_injEq: (mk v₀ f₀ t₀ = mk v₁ f₁ t₁) = (v₀ = v₁ ∧ f₀ = f₁ ∧ t₀ = t₁) :=
+  eq_iff_iff.mpr mk_inj
 
 @[simp] theorem mk_zero_injEq: (mk v f t = 0) = (v = false ∧ f = 0 ∧ t = 0) := zero_def' ▸ mk_injEq
 

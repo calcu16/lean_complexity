@@ -369,7 +369,7 @@ theorem splitTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz):
   exact (Stack.timeCost_le_iff _ (Program.halts_of_sound h _)).mp (p.costedMatches ▸ p.costed.splitTimeCost (costed_sound h) (costed_sound' h) a _ (Option.mem_some_iff.mpr rfl))
   exact le_refl _
 
-def nonRecursiveCompexity {p: Program} [Trace.HasCostedProgram p] {h: sound p f (λ _ ↦ 0)}
+def nonRecursiveComplexity {p: Program} [Trace.HasCostedProgram p] {h: sound p f (λ _ ↦ 0)}
     {cf: Complexity.CostFunction α ℕ} (hs: p.subroutineTimeComplexity h ∈ O(cf)):
     p.timeCost' h ∈ O(cf) := Complexity.ALE.ale_of_le_of_ale
     (splitTimeCost h)

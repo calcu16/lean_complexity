@@ -19,6 +19,11 @@ def Nat.ofBits: List Bool → ℕ
     λ h ↦ Nat.ofBits_inverse n ▸ Nat.ofBits_inverse m ▸ congrArg Nat.ofBits h,
     λ h ↦ h ▸ rfl ⟩
 
+
+theorem Nat.bit_div_2: (Nat.bit b n) / 2 = n := by
+  set_option linter.deprecated false in
+  cases b <;> dsimp [bit0, bit1] <;> omega
+
 def List.getN (N: ℕ) (as: List α): Option (Fin N → α) :=
   if h: N ≤ as.length
   then some (λ n ↦ as.get ⟨n.val, lt_of_lt_of_le n.isLt h⟩)
@@ -229,6 +234,30 @@ instance: Encoding ℕ Memory where
   encode_inj := by simp
   decode m := Option.map Nat.ofBits (decode (List Bool) m)
   decode_inv := by simp
+
+theorem encode_nat_def {n: ℕ}: (encode n) = Memory.mk (decide (n ≠ 0)) (encode (decide (n % 2 = 1))) (encode (n / 2)) := by
+  refine Nat.binaryRec' (n := n) Memory.zero_def'.symm ?hi
+  intro b n hn _
+  apply Eq.trans
+  apply congrArg (encode (α := List Bool))
+  apply Nat.bits_append_bit _ _ hn
+  apply Memory.mk_inj.mpr
+  apply And.intro
+  exact Eq.symm (decide_eq_true λ h ↦ absurd ((Nat.bit_eq_zero.mp h).right.symm.trans (hn (Nat.bit_eq_zero.mp h).left)) Bool.noConfusion)
+  cases b <;> simp [-Nat.bit_false, -Nat.bit_true, Nat.bit_mod_two, Nat.bit_div_2]
+  rfl
+  rfl
+
+@[simp] theorem encode_zero: encode (0: ℕ) = (0: Memory) := rfl
+@[simp] theorem encode_succ: encode ((Nat.succ n):ℕ) = Memory.mk true (encode (decide ((n + 1) % 2 = 1))) (encode ((n + 1) / 2)) :=
+  encode_nat_def
+@[simp] theorem encode_getm_false {n: ℕ}: Memory.getm (encode n) false = encode (decide (n % 2 = 1)) :=
+  (congrArg₂ Memory.getm encode_nat_def rfl).trans Memory.getm_mk_f
+@[simp] theorem encode_getm_true {n: ℕ}: Memory.getm (encode n) true = encode (n / 2) :=
+  (congrArg₂ Memory.getm encode_nat_def rfl).trans Memory.getm_mk_t
+@[simp] theorem encode_getv {n: ℕ}: Memory.getv (encode n) = decide (n ≠ 0) :=
+  (congrArg Memory.getv encode_nat_def).trans Memory.getv_mk
+
 
 def Model: Complexity.Model where
   Program := Program

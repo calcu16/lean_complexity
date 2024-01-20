@@ -12,6 +12,6 @@ instance [Complexity.Encoding α Memory]: Program.HasCost ↿(@List.cons α) 1 w
   program := [ .setv 0 true ]
   size _ := 0
   sound | (_, _) => by simp
-  cost_ale := Program.nonRecursiveCompexity (Complexity.ALE.const_ale _ _)
+  cost_ale := Program.nonRecursiveComplexity (Complexity.ALE.const_ale _ _)
 
 end HMem.Complexity
