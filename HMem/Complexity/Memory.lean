@@ -3,25 +3,6 @@ import HMem.Encoding.Emulator
 import HMem.Complexity.Basic
 import Complexity.Basic
 
-@[simp] theorem Option.bind_comp_some:
-    (λ a ↦ Option.bind a f) ∘ (some ∘ g) = f ∘ g :=
-  funext λ _ ↦ rfl
-
-@[simp] theorem id_def: (λ (a: α) ↦ a) = id := rfl
-
-theorem lambda_comp {f: α → β}: (λ a ↦ f a) ∘ g = λ a ↦ (f (g a)) := funext λ _ ↦ rfl
-
-@[simp] theorem Complexity.decode_comp_encode
-    {α: Type _} [Setoid Data] [Encoding α Data]:
-    Complexity.decode α (Data := Data) ∘ Complexity.encode (α := α) (Data := Data) = some :=
-  funext λ _ ↦ decode_inv _
-
-@[simp] theorem Complexity.CostFunction.flatMap_some':
-  Complexity.CostFunction.flatMap Option.some g = g := rfl
-
-@[simp] theorem Complexity.CostFunction.flatMap_lambda_some {f: α → β}:
-  Complexity.CostFunction.flatMap (λ a ↦ Option.some (f a)) g = g ∘ f := rfl
-
 namespace HMem.Complexity
 instance: Program.HasCost Memory.getv 1 where
   program := [
