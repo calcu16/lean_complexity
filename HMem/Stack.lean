@@ -83,6 +83,13 @@ def maxRecurse: Program → ℕ
 | subroutine _ _ _ next => maxRecurse next
 | recurse _ _ next => maxRecurse next + 1
 
+def selfContained: Program → Bool
+| exit => true
+| op _ next => selfContained next
+| branch _ next => (selfContained (next true)) && (selfContained (next false))
+| subroutine _ _ _ _ => false
+| recurse _ _ next => selfContained next
+
 @[match_pattern] def call (dst src: Source): Option Program → Program → Program
 | some func, next => subroutine dst src func next
 | none, next => recurse dst src next

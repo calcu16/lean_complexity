@@ -55,6 +55,16 @@ def subroutineTimeCost: {cp: CostedProgram} → {fm: α → Option Memory} →(h
   hcost.cost_ale.bound.flatMap (TracedProgram.sound'_subroutine_arg h)
 | .recurse _ _ _, _, h => subroutineTimeCost (TracedProgram.sound'_recurse_next h)
 
+def subroutineTimeCost_selfContained: {cp: CostedProgram} → cp.toProgram.selfContained → {fm: α → Option Memory} →(h: cp.toTracedProgram.sound' f size fm) → cp.subroutineTimeCost h = 0
+| .exit, _, _, _ => rfl
+| .op _ next, hs, _, h => subroutineTimeCost_selfContained (cp := next) hs (TracedProgram.sound'_op_next h)
+| .branch _ _, hs, _, h =>
+  funext λ _ ↦ add_eq_zero.mpr ⟨
+    congrFun (subroutineTimeCost_selfContained (Bool.and_elim_left hs) (TracedProgram.sound'_branch_next_true h)) _,
+    congrFun (subroutineTimeCost_selfContained (Bool.and_elim_right hs) (TracedProgram.sound'_branch_next_false h)) _ ⟩
+| .subroutine' _ _ _ _ _ _ _ _, hs, _, _ => absurd hs Bool.noConfusion
+| .recurse _ _ next, hs, _, h => subroutineTimeCost_selfContained (cp := next) hs (TracedProgram.sound'_recurse_next h)
+
 def subroutineTimeComplexity: {cp: CostedProgram} → {fm: α → Option Memory} →(h: cp.toTracedProgram.sound' f size fm) → Complexity.CostFunction α ℕ
 | .exit, _, _ => 0
 | .op _ _, _, h => subroutineTimeComplexity (TracedProgram.sound'_op_next h)
@@ -344,6 +354,9 @@ def localTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): Com
 def subroutineTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): Complexity.CostFunction α ℕ :=
   p.costed.subroutineTimeCost (costed_sound' h)
 
+def subroutineTimeCost_selfContained {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz) (hs: p.selfContained): p.subroutineTimeCost h ∈ O(0):=
+  ⟨0, 0, le_of_eq_of_le (p.costed.subroutineTimeCost_selfContained (p.costedMatches.symm ▸ hs) _) (zero_le _)⟩
+
 def subroutineTimeComplexity {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz): Complexity.CostFunction α ℕ :=
   p.costed.subroutineTimeComplexity (costed_sound' h)
 
@@ -431,6 +444,16 @@ def simpleLoopComplexity {p: Program} [Trace.HasCostedProgram p] {h: sound p f s
     have hsi: subroutineTimeCost h + localTimeCost h ∈ O(0) :=
       Complexity.ALE.add_ale
         (((subroutineTimeComplexity_elem _).trans hs).trans (Complexity.ALE.const_ale _ 0))
+        ((p.localTimeCost_const h).trans (Complexity.ALE.const_ale _ 0))
+    ⟨ _, _, λ _ ↦ simpleLoopCost (le_trans hsi.le_bound (le_of_eq ((congrArg₂ Add.add (mul_zero _) rfl).trans (zero_add _)))) hr _ _ rfl ⟩
+
+def simpleLoopComplexity' {p: Program} [Trace.HasCostedProgram p] {h: sound p f sz}
+    (hs: p.selfContained)
+    (hr: p.maxRecurse = 1):
+  p.timeCost' h ∈ O(sz) :=
+    have hsi: subroutineTimeCost h + localTimeCost h ∈ O(0) :=
+      Complexity.ALE.add_ale
+        ((p.subroutineTimeCost_selfContained h hs).trans (Complexity.ALE.const_ale _ 0))
         ((p.localTimeCost_const h).trans (Complexity.ALE.const_ale _ 0))
     ⟨ _, _, λ _ ↦ simpleLoopCost (le_trans hsi.le_bound (le_of_eq ((congrArg₂ Add.add (mul_zero _) rfl).trans (zero_add _)))) hr _ _ rfl ⟩
 

@@ -2,6 +2,26 @@ import HMem.Encoding.Basic
 import HMem.Trace.Cost
 
 
+@[simp] theorem Option.bind_comp_some:
+    (λ a ↦ Option.bind a f) ∘ (some ∘ g) = f ∘ g :=
+  funext λ _ ↦ rfl
+
+@[simp] theorem id_def: (λ (a: α) ↦ a) = id := rfl
+
+theorem lambda_comp {f: α → β}: (λ a ↦ f a) ∘ g = λ a ↦ (f (g a)) := funext λ _ ↦ rfl
+
+@[simp] theorem Complexity.decode_comp_encode
+    {α: Type _} [Setoid Data] [Encoding α Data]:
+    Complexity.decode α (Data := Data) ∘ Complexity.encode (α := α) (Data := Data) = some :=
+  funext λ _ ↦ decode_inv _
+
+@[simp] theorem Complexity.CostFunction.flatMap_some':
+  Complexity.CostFunction.flatMap Option.some g = g := rfl
+
+@[simp] theorem Complexity.CostFunction.flatMap_lambda_some {f: α → β}:
+  Complexity.CostFunction.flatMap (λ a ↦ Option.some (f a)) g = g ∘ f := rfl
+
+
 namespace HMem
 
 variable (next: List (Program → Program)) [Trace.HasTracedProgram (Program.build next)]
@@ -52,6 +72,16 @@ instance: Trace.HasTracedProgram (Program.build (.copyv dst src::next)) where
   tracedProgramMatches := congrArg _ (Program.tracedMatches _)
 instance: Trace.HasCostedProgram (Program.build (.copyv dst src::next')) where
   costedProgram := .copyv dst src (Program.build next').costed
+  costedProgramMatches := congrArg _ (Program.costedMatches _)
+
+@[simp] def Program.op₃ (op₃: Bool → Bool → Bool → Bool) (dst s₀ s₁ s₂: Source): Program → Program := op (.vop (λ f ↦ op₃ (f 0) (f 1) (f 2)) dst ![s₀, s₁, s₂])
+@[simp] def Trace.TracedProgram.op₃ (op₃: Bool → Bool → Bool → Bool) (dst s₀ s₁ s₂: Source): TracedProgram → TracedProgram := op (.vop (λ f ↦ op₃ (f 0) (f 1) (f 2)) dst ![s₀, s₁, s₂])
+@[simp] def Trace.CostedProgram.op₃ (op₃: Bool → Bool → Bool → Bool) (dst s₀ s₁ s₂: Source): CostedProgram → CostedProgram := op (.vop (λ f ↦ op₃ (f 0) (f 1) (f 2)) dst ![s₀, s₁, s₂])
+instance: Trace.HasTracedProgram (Program.build (.op₃ op₃ dst s₀ s₁ s₂::next)) where
+  tracedProgram := .op₃ op₃ dst s₀ s₁ s₂ (Program.build next).traced
+  tracedProgramMatches := congrArg _ (Program.tracedMatches _)
+instance: Trace.HasCostedProgram (Program.build (.op₃ op₃ dst s₀ s₁ s₂::next')) where
+  costedProgram := .op₃ op₃ dst s₀ s₁ s₂ (Program.build next').costed
   costedProgramMatches := congrArg _ (Program.costedMatches _)
 
 @[simp] def Program.copy (dst src: Source): Program → Program := op (.mop .COPY dst src)
