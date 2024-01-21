@@ -277,4 +277,8 @@ instance: Program.HasCost ↿Nat.add (λ | (x, y) => Nat.log 2 (x + y)) where
       apply Nat.zero_add
       simp [flip, Complexity.CostFunction.flatMap]
 
+
 end HMem.Complexity.Nat
+
+
+instance : Complexity HMem.Encoding.Model ↿Nat.add (λ | (x, y) => Nat.log 2 (x + y)) := inferInstance
