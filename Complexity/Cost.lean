@@ -1,73 +1,129 @@
+import Lib
 import Mathlib.Algebra.NeZero
 import Mathlib.Algebra.Order.Monoid.Basic
 import Mathlib.Algebra.Order.Monoid.Canonical.Defs
 import Mathlib.Tactic
 
+/-!
+This file defines Complexity.CostFunction and various operations on it.
+
+And represents the cost of some operation on α.
+Ideally a CostFunction would have a [CanonicallyOrderedLatticeCommSemiring θ]
+but that is not required in this file.
+
+## TODO:
+
+Consider filling in the path to CanonicallyOrderedLatticeCommSemiring more granularly.
+
+Notions of powers and logs may be useful for calculations in the future.
+-/
+
 namespace Complexity
-def CostFunction (α: Type _) (β: Type): Type _ := α → β
+/--
+A CostFunction is just a thin wrapper around a function from (α → θ).
 
--- instance (m: CostedModel): CanonicallyOrderedAddCommMonoid m.Cost := m.cost_add
--- instance (m: CostedModel): One m.Cost := m.cost_one
-
--- def Cost.scalar_mul (m: CostedModel): ℕ → m.Cost → m.Cost
--- | 0, _ => 0
--- | n+1, c => Cost.scalar_mul m n c + c
-
--- instance (m: CostedModel): HMul ℕ m.Cost m.Cost := ⟨ Cost.scalar_mul m ⟩
--- instance (m: CostedModel): Coe ℕ m.Cost := ⟨ λ n ↦ n * (One.one:m.Cost) ⟩
+We could consider making this a type, but its nice to be able to call it like a normal function.
+-/
+def CostFunction (α: Type _) (θ: Type _): Type _ := α → θ
 
 namespace CostFunction
 
-variable {α: Type _}
+variable {α: Type _} {β: Type _} {θ: Type _}
 
-instance {n: ℕ}: OfNat (CostFunction α ℕ) n where
-  ofNat _ := n
+/-- A convience Coe that represents a constant cost -/
+instance: Coe θ (CostFunction α θ) where
+  coe b _ := b
 
-instance: NatCast (CostFunction α ℕ) where
-  natCast n := λ _ ↦ n
+instance [Zero θ]: Zero (CostFunction α θ) := ⟨ ↑(0:θ) ⟩
+instance [One θ]: One (CostFunction α θ) := ⟨ ↑(1:θ) ⟩
 
-instance [Inhabited α]: NeZero (1:CostFunction α ℕ) where
-  out h := one_ne_zero' ℕ (congrFun h default)
+instance [Inhabited α] [Zero θ] [One θ] [NeZero (1:θ)]: NeZero (1:CostFunction α θ) where
+  out h := one_ne_zero (congrFun h default)
 
-instance [LE β]: LE (CostFunction α β) where
+/--
+A cost function is ≤ if it is ≤ everywhere.
+
+This has some implications:
+- Total orders now becomes partial orders. F.x. ![1, 0] and ![0, 1] are incomparable despite 0 ≤ 1
+- The implied < is ≤ everywhere and < somewhere, not < everywhere.
+  In particular this means that even if [PosMulStrictMono θ] the cost function may not be becuase
+  0 < ![1, 0] and 0 < ![0, 1] but the implied inner product is ![0, 0].
+-/
+instance [LE θ]: LE (CostFunction α θ) where
   le x y := ∀ a, x a ≤ y a
 
-instance [PartialOrder β]: PartialOrder (CostFunction α β) where
-  le_refl _ _ := le_refl _
-  le_antisymm _ _ hab hba := funext λ _ ↦ le_antisymm (hab _) (hba _)
-  le_trans _ _ _ hab hbc _ := le_trans (hab _) (hbc _)
+instance [Add θ]: Add (CostFunction α θ) where
+  add x y a := x a + y a
+theorem add_def [Add θ] {x y: CostFunction α θ}: (x + y) a = x a + y a := rfl
+theorem const_add_const [Add θ](a b: θ): ((a + b:θ):CostFunction α θ) = (a:CostFunction α θ) + (b:CostFunction α θ) := funext λ _ ↦ rfl
 
-instance: CanonicallyOrderedAddCommMonoid (CostFunction α ℕ) where
-  bot := 0
-  bot_le _ _ := bot_le
-  add x y a := (x a) + (y a)
+instance [AddCommMonoid β]: AddCommMonoid (CostFunction α β) where
   zero_add _ := funext λ _ ↦ zero_add _
   add_zero _ := funext λ _ ↦ add_zero _
   add_comm _ _ := funext λ _ ↦ add_comm _ _
   add_assoc _ _ _ := funext λ _ ↦ add_assoc _ _ _
-  add_le_add_left _ _ h _ _ := add_le_add_left (h _) _
-  exists_add_of_le h := ⟨ _, funext λ _ ↦ (Nat.sub_add_cancel (h _)).symm.trans (Nat.add_comm _ _)  ⟩
-  le_self_add _ _ _ := le_self_add
 
-instance: OrderedCommSemiring (CostFunction α ℕ) where
-  zero_le_one _ := zero_le_one
-  mul x y a := (x a) * (y a)
-  mul_zero _ := funext λ _ ↦ mul_zero _
-  zero_mul _ := funext λ _ ↦ zero_mul _
-  mul_one _ := funext λ _ ↦ mul_one _
+instance [Mul θ]: Mul (CostFunction α θ) where
+  mul x y a := x a * y a
+theorem const_mul_const [Mul θ] (a b: θ): ((a * b:θ):CostFunction α θ) = (a:CostFunction α θ) * (b:CostFunction α θ) := funext λ _ ↦ rfl
+theorem mul_def [Mul θ] {x y: CostFunction α θ}: (x * y) a = x a * y a := rfl
+
+instance [CommSemiring θ]: CommSemiring (CostFunction α θ) where
   one_mul _ := funext λ _ ↦ one_mul _
+  mul_one _ := funext λ _ ↦ mul_one _
   mul_comm _ _ := funext λ _ ↦ mul_comm _ _
   mul_assoc _ _ _ := funext λ _ ↦ mul_assoc _ _ _
+  mul_zero _ := funext λ _ ↦ mul_zero _
+  zero_mul _ := funext λ _ ↦ zero_mul _
   left_distrib _ _ _ := funext λ _ ↦ left_distrib _ _ _
   right_distrib _ _ _  := funext λ _ ↦ right_distrib _ _ _
+
+instance [Preorder θ]: Preorder (CostFunction α θ) where
+  le_refl _ _ := le_refl _
+  le_trans _ _ _ hab hbc _ := le_trans (hab _) (hbc _)
+class Monotone [Preorder α] [Preorder θ] (cf: CostFunction α θ) where
+  mono {a b: α}: a ≤ b → cf a ≤ cf b
+def monotone [Preorder α] [Preorder θ] (cf: CostFunction α θ) [h: Monotone cf] {a b: α}: a ≤ b → cf a ≤ cf b := h.mono
+
+instance [PartialOrder θ]: PartialOrder (CostFunction α θ) where
+  le_antisymm _ _ hab hba := funext λ _ ↦ le_antisymm (hab _) (hba _)
+
+instance [LE θ] [OrderBot θ]: OrderBot (CostFunction α θ) where
+  bot _ := ⊥
+  bot_le _ _ := bot_le
+
+instance [OrderedAddCommMonoid θ]: OrderedAddCommMonoid (CostFunction α θ) where
+  add_le_add_left _ _ h _ _ := add_le_add_left (h _) _
+/-- We can use use this instead of 0 < a if we need to show mul_pos. -/
+class Positive [OrderedAddCommMonoid θ] (cf: CostFunction α θ) where
+  positive a: 0 < cf a
+def positive [OrderedAddCommMonoid θ] (cf: CostFunction α θ) [h: Positive cf]: (a: α) → 0 < cf a := h.positive
+
+instance [CanonicallyOrderedAddCommMonoid θ]: CanonicallyOrderedAddCommMonoid (CostFunction α θ) where
+  exists_add_of_le h := ⟨ _, funext λ _ ↦ Classical.choose_spec (exists_add_of_le (h _)) ⟩
+  le_self_add _ _ _ := le_self_add
+/-- If Monotone generalizes a positive first derivative,
+then MonotoneConcaveUp generalizes a notion of a positive first and second derivative -/
+class MonotoneConcaveUp [CanonicallyOrderedAddCommMonoid α] [CanonicallyOrderedAddCommMonoid θ] (cf: CostFunction α θ) extends Monotone cf where
+  concave {a b c: α} (hab: a ≤ b) (hbc: b ≤ c) (hac: distance hab ≤ distance hbc):
+    distance (monotone cf hab) ≤ distance (monotone cf hbc)
+def monotoneConcaveUp [CanonicallyOrderedAddCommMonoid α] [CanonicallyOrderedAddCommMonoid θ] (cf: CostFunction α θ) [h: MonotoneConcaveUp cf]:
+    {a b c: α} → (hab: a ≤ b) → (hbc: b ≤ c) → (hac: distance hab ≤ distance hbc) →
+    distance (monotone cf hab) ≤ distance (monotone cf hbc) :=
+  h.concave
+
+instance [OrderedCommSemiring θ]: OrderedCommSemiring (CostFunction α θ) where
+  zero_le_one _ := zero_le_one
+  mul_comm _ _ := funext λ _ ↦ mul_comm _ _
   add_le_add_left _ _ h _ _ := add_le_add_left (h _) _
   mul_le_mul_of_nonneg_left _ _ _ hab hpos _ := mul_le_mul_of_nonneg_left (hab _) (hpos _)
   mul_le_mul_of_nonneg_right _ _ _ hab hpos _ := mul_le_mul_of_nonneg_right (hab _) (hpos _)
 
-instance: OrderedCancelAddCommMonoid (CostFunction α ℕ) where
+instance [OrderedCancelAddCommMonoid θ]: OrderedCancelAddCommMonoid (CostFunction α θ) where
+  add_le_add_left _ _ h _ _ := add_le_add_left (h _) _
   le_of_add_le_add_left _ _ _ h _ := le_of_add_le_add_left (h _)
 
-instance [Lattice β]: Lattice (CostFunction α β) where
+instance [Lattice θ]: Lattice (CostFunction α θ) where
   sup x y a := x a ⊔ y a
   inf x y a := x a ⊓ y a
   le_sup_left _ _ _ := le_sup_left
@@ -77,68 +133,54 @@ instance [Lattice β]: Lattice (CostFunction α β) where
   inf_le_right _ _ _ := inf_le_right
   le_inf _ _ _ hab hac _ := le_inf (hab _) (hac _)
 
-theorem add_def {x y: CostFunction α ℕ}: (x + y) a = x a + y a := rfl
-theorem mul_def {x y: CostFunction α ℕ}: (x * y) a = x a * y a := rfl
-theorem mul_pos {x y: CostFunction α ℕ} (hx: 1 ≤ x) (hy: 1 ≤ y): 1 ≤ x * y := λ _ ↦ Nat.mul_pos (hx _) (hy _)
-theorem sup_def {x y: CostFunction α ℕ}: (x ⊔ y) a = x a ⊔ y a := rfl
-theorem inf_def {x y: CostFunction α ℕ}: (x ⊓ y) a = x a ⊓ y a := rfl
-theorem le_mul_of_pos_right {x y: CostFunction α ℕ} (hy: 1 ≤ y): x ≤ x * y := λ _ ↦ Nat.le_mul_of_pos_right (hy _)
+theorem sup_def [Lattice θ] {x y: CostFunction α θ}: (x ⊔ y) a = x a ⊔ y a := rfl
+theorem inf_def [Lattice θ]  {x y: CostFunction α θ}: (x ⊓ y) a = x a ⊓ y a := rfl
+theorem const_sup_const [Lattice θ] (a b: θ): ((a ⊔ b:θ):CostFunction α θ) = (a:CostFunction α θ) ⊔ (b:CostFunction α θ) := funext λ _ ↦ rfl
+theorem const_inf_const [Lattice θ] (a b: θ): ((a ⊓ b:θ):CostFunction α θ) = (a:CostFunction α θ) ⊓ (b:CostFunction α θ) := funext λ _ ↦ rfl
 
-theorem natZero_mul (x: CostFunction α ℕ): (0:ℕ) * x = 0 := funext λ _ ↦ zero_mul _
-theorem natOne_mul (x: CostFunction α ℕ): (1:ℕ) * x = x := funext λ _ ↦ one_mul _
-theorem const_add_const (a b: ℕ): ((a + b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) + b := funext λ _ ↦ rfl
-theorem const_mul_const (a b: ℕ): ((a * b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) * b := funext λ _ ↦ rfl
-theorem const_sup_const (a b: ℕ): ((a ⊔ b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) ⊔ b := funext λ _ ↦ rfl
-theorem const_inf_const (a b: ℕ): ((a ⊓ b:ℕ):CostFunction α ℕ) = (a:CostFunction α ℕ) ⊓ b := funext λ _ ↦ rfl
+def add_eq_sup [CanonicallyOrderedLatticeAddCommMonoid θ] {x y: CostFunction α θ} (h: ∀ a, x a = 0 ∨ y a = 0): x + y = x ⊔ y :=
+  funext λ a ↦ (h a).elim
+    (λ h ↦ ((congrArg₂ _ h rfl).trans (zero_add (y a))).trans ((congrArg₂ _ h rfl).trans (zero_sup (y a))).symm)
+    (λ h ↦ ((congrArg₂ _ rfl h).trans (add_zero (x a))).trans ((congrArg₂ _ rfl h).trans (sup_zero (x a))).symm)
 
-def mul' (x y: CostFunction α ℕ): CostFunction α ℕ := (x + 1) * (y + 1)
-
-theorem mul'_le_mul' {a x b y: CostFunction α ℕ} (hax: a ≤ x) (hby: b ≤ y): mul' a b ≤ mul' x y :=
-  mul_le_mul (add_le_add_right hax _) (add_le_add_right hby _) (zero_le _) (zero_le _)
-
-def add_eq_sup {x y: CostFunction α ℕ} (h: ∀ a, x a = 0 ∨ y a = 0): x + y = x ⊔ y :=
-  funext λ _ ↦ (h _).elim
-    (λ h ↦
-      (((congrArg₂ _ h rfl).trans
-      (zero_add _)).trans
-      (Nat.zero_max _).symm).trans
-      (congrArg₂ _ h.symm rfl))
-    λ h ↦
-      (((congrArg₂ _ rfl h).trans
-      (add_zero _)).trans
-      (Nat.max_zero _).symm).trans
-      (congrArg₂ _ rfl h.symm)
-
-def flatMap (f: α → Option β) (g: CostFunction β ℕ): CostFunction α ℕ := λ a ↦
+/-- Maps over a partial function sending None to 0 -/
+def flatMap [Zero θ] (f: α → Option β) (g: CostFunction β θ): CostFunction α θ := λ a ↦
   match f a with
   | none => 0
   | some b => g b
 
-theorem flatMap_none {f: α → Option β} {a: α} (h: f a = none) (g: CostFunction β ℕ):
+theorem flatMap_none [Zero θ] {f: α → Option β} {a: α} (h: f a = none) (g: CostFunction β θ):
   (g.flatMap f) a = 0 := by simp[flatMap, h]
 
-theorem flatMap_some {f: α → Option β} {a: α} {b: β} (h: f a = some b) (g: CostFunction β ℕ):
+theorem flatMap_some [Zero θ] {f: α → Option β} {a: α} {b: β} (h: f a = some b) (g: CostFunction β θ):
   (g.flatMap f) a = g b := by simp[flatMap, h]
 
-theorem flatMap_le_apply {f: α → Option β} {g: CostFunction β ℕ} {g': CostFunction α ℕ} {a: α}
+
+@[simp] theorem flatMap_some' [Zero θ] {g: CostFunction β θ}:
+  flatMap Option.some g = g := rfl
+
+@[simp] theorem flatMap_lambda_some [Zero θ] {f: α → β} {g: CostFunction β θ}:
+  flatMap (λ a ↦ Option.some (f a)) g = g ∘ f := rfl
+
+theorem flatMap_le_apply [CanonicallyOrderedAddCommMonoid θ] {f: α → Option β} {g: CostFunction β θ} {g': CostFunction α θ} {a: α}
     (h: ∀ b ∈ f a, g b ≤ g' a): (g.flatMap f) a ≤ g' a :=
   match ha: f a with
   | some _ => le_of_eq_of_le (flatMap_some ha _) (h _ ha)
   | none => le_of_eq_of_le (flatMap_none ha _) (zero_le _)
 
-theorem flatMap_le_const {g: CostFunction β ℕ} (h: ∀ b, g b ≤ n) (f: α → Option β):
+theorem flatMap_le_const [CanonicallyOrderedAddCommMonoid θ] {g: CostFunction β θ} (h: ∀ b, g b ≤ n) (f: α → Option β):
     g.flatMap f ≤ n := λ a ↦
   match ha:f a with
   | some _ => le_of_eq_of_le (flatMap_some ha _) (h _)
   | none => le_of_eq_of_le (flatMap_none ha _) (zero_le _)
 
-theorem nat_flatMap_le_nat (n: ℕ) (f: α → Option β):
-    (n:CostFunction β ℕ).flatMap f ≤ n := flatMap_le_const (λ _ ↦ le_refl _) _
+theorem const_flatMap_le_const [CanonicallyOrderedAddCommMonoid θ] (n: θ) (f: α → Option β):
+    flatMap f (n:CostFunction β θ) ≤ n := flatMap_le_const (λ _ ↦ le_refl _) _
 
-theorem flatMap_le_flatMap {x y: CostFunction β ℕ} (h: x ≤ y) (f: α → Option β):
+theorem flatMap_le_flatMap [Zero θ] [Preorder θ] {x y: CostFunction β θ} (h: x ≤ y) (f: α → Option β):
     x.flatMap f ≤ y.flatMap f := λ a ↦
   match ha:f a with
-  | none => flatMap_none ha x ▸ Nat.zero_le _
+  | none => flatMap_none ha x ▸ flatMap_none ha y ▸ le_refl _
   | some _ => flatMap_some ha x ▸ flatMap_some ha y ▸ h _
 
 end CostFunction

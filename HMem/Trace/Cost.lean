@@ -5,21 +5,21 @@ import Complexity.Asymptotic
 theorem Option.bind_of_none (h: o = none): Option.bind o f = none := h ▸ rfl
 
 namespace HMem
-variable {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β} {tp: TracedProgram}
-variable {γ: Type _} {δ: Type _} [Complexity.Encoding γ Memory] [Complexity.Encoding δ Memory] {fs: γ → δ} {cs: Complexity.CostFunction γ ℕ} [Complexity.Computable Encoding.Model fs] [Complexity Encoding.Model fs cs]
+variable {α: Type _} [Complexity.Coding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β} {tp: TracedProgram}
+variable {γ: Type _} {δ: Type _} [Complexity.Coding γ Memory] [Complexity.Encoding δ Memory] {fs: γ → δ} {cs: Complexity.CostFunction γ ℕ} [Complexity.Computable Encoding.Model fs] [Complexity Encoding.Model fs cs]
 
 namespace Trace
 inductive CostedProgram
 | exit
 | op (inst: OpInstruction) (next: CostedProgram)
 | branch (inst: BranchInstruction) (next: (b: Bool) → CostedProgram)
-| subroutine (dst src: Source) {γ: Type _} {δ: Type _} [Complexity.Encoding γ Memory] [Complexity.Encoding δ Memory]
+| subroutine (dst src: Source) {γ: Type _} {δ: Type _} [Complexity.Coding γ Memory] [Complexity.Encoding δ Memory]
   (fs: γ → δ) (cs: Complexity.CostFunction γ ℕ) [Complexity Encoding.Model fs cs] (next: CostedProgram)
 | recurse (dst src: Source) (next: CostedProgram)
 
 namespace CostedProgram
 
-@[match_pattern] def subroutine' (dst src: Source) {γ: Type _} (_hγ: Complexity.Encoding γ Memory) {δ: Type _} (_hδ: Complexity.Encoding δ Memory)
+@[match_pattern] def subroutine' (dst src: Source) {γ: Type _} (_hγ: Complexity.Coding γ Memory) {δ: Type _} (_hδ: Complexity.Encoding δ Memory)
     (fs: γ → δ) (cs: Complexity.CostFunction γ ℕ) (_h': Complexity Encoding.Model fs cs) (next: CostedProgram): CostedProgram :=
   subroutine dst src fs cs next
 
@@ -52,7 +52,7 @@ def subroutineTimeCost: {cp: CostedProgram} → {fm: α → Option Memory} →(h
   subroutineTimeCost (TracedProgram.sound'_branch_next_false h)
 | .subroutine' _ _ _ _ _ _ hcost _, _, h =>
   subroutineTimeCost (TracedProgram.sound'_subroutine_next h) +
-  hcost.cost_ale.bound.flatMap (TracedProgram.sound'_subroutine_arg h)
+  (Encoding.getBound hcost).flatMap (TracedProgram.sound'_subroutine_arg h)
 | .recurse _ _ _, _, h => subroutineTimeCost (TracedProgram.sound'_recurse_next h)
 
 def subroutineTimeCost_selfContained: {cp: CostedProgram} → cp.toProgram.selfContained → {fm: α → Option Memory} →(h: cp.toTracedProgram.sound' f size fm) → cp.subroutineTimeCost h = 0
@@ -158,21 +158,21 @@ theorem recurseTimeCostBound {fcp: CostedProgram}
     (Nat.succ_mul _ _).symm
 
 theorem localTimeCostInternal_le_size: {cp: CostedProgram} → (h: cp.toTracedProgram.sound' f size fm) →
-  localTimeCost h ≤ cp.toProgram.size
-| .exit, _, _ => Complexity.CostFunction.nat_flatMap_le_nat _ _ _
+  localTimeCost h ≤ λ _ ↦ cp.toProgram.size
+| .exit, _, _ => Complexity.CostFunction.const_flatMap_le_const _ _ _
 | .op _ _, _, _ => add_le_add
   (localTimeCostInternal_le_size _ _)
-  (Complexity.CostFunction.nat_flatMap_le_nat _ _ _)
+  (Complexity.CostFunction.const_flatMap_le_const _ _ _)
 | .branch _ _, _, _ => add_le_add (add_le_add
   (localTimeCostInternal_le_size _ _)
   (localTimeCostInternal_le_size _ _))
-  (Complexity.CostFunction.nat_flatMap_le_nat _ _ _)
+  (Complexity.CostFunction.const_flatMap_le_const _ _ _)
 | .subroutine' _ _ _ _ _ _ _ _, _, _ => add_le_add
   (le_add_left (localTimeCostInternal_le_size _ _))
-  (Complexity.CostFunction.nat_flatMap_le_nat _ _ _)
+  (Complexity.CostFunction.const_flatMap_le_const _ _ _)
 | .recurse _ _ _, _, _ => add_le_add
   (localTimeCostInternal_le_size _ _)
-  (Complexity.CostFunction.nat_flatMap_le_nat _ _ _)
+  (Complexity.CostFunction.const_flatMap_le_const _ _ _)
 
 theorem recurseTimeCost_leaf {fcp: CostedProgram} (hf: fcp.toTracedProgram.toProgram.sound f size):
     {cp: CostedProgram} → (h: cp.toTracedProgram.sound' f size fm) →
@@ -384,17 +384,17 @@ theorem splitTimeCost {p: Program} [Trace.HasCostedProgram p] (h: sound p f sz):
 
 def nonRecursiveComplexity {p: Program} [Trace.HasCostedProgram p] {h: sound p f (λ _ ↦ 0)}
     {cf: Complexity.CostFunction α ℕ} (hs: p.subroutineTimeComplexity h ∈ O(cf)):
-    p.timeCost' h ∈ O(cf) := Complexity.ALE.ale_of_le_of_ale
+    p.timeCost' h ∈ O(cf) := Complexity.ALE.of_le_of_ale
     (splitTimeCost h)
     ((Complexity.ALE.add_ale (Complexity.ALE.add_ale (Complexity.ALE.trans
       (subroutineTimeComplexity_elem _)
       hs)
-      (Complexity.ALE.ale_of_le_of_ale (le_of_eq (funext λ _ ↦ (Trace.CostedProgram.recurseTimeCost_leaf (costed_sound h) _ rfl))) (Complexity.ALE.const_ale 0 _)))
+      (Complexity.ALE.of_le_of_ale (le_of_eq (funext λ _ ↦ (Trace.CostedProgram.recurseTimeCost_leaf (costed_sound h) _ rfl))) (Complexity.ALE.const_ale 0 _)))
       (Complexity.ALE.trans (localTimeCost_const h) (Complexity.ALE.const_ale _ _))))
 
 theorem simpleLoopCost {p: Program} [Trace.HasCostedProgram p] {h: sound p f sz}
     {x: ℕ}
-    (hsi: p.subroutineTimeCost h + p.localTimeCost h ≤ x)
+    (hsi: p.subroutineTimeCost h + p.localTimeCost h ≤ λ _ ↦ x)
     (hr: p.maxRecurse = 1)
     (n: ℕ):
   ∀ a, sz a = n → p.timeCost' h a ≤ x * n + x := by
@@ -459,7 +459,7 @@ def simpleLoopComplexity' {p: Program} [Trace.HasCostedProgram p] {h: sound p f 
 
 end Program
 
-instance [h: Program.HasCost f c]: (Complexity Encoding.Model f c) where
+instance [h: Program.HasCost f c]: Complexity Encoding.Model f c where
   cost_ale := h.cost_ale
 
 end HMem

@@ -4,6 +4,8 @@ open Lake DSL
 package complexity
 
 @[default_target]
+lean_lib Lib
+@[default_target]
 lean_lib HMem
 @[default_target]
 lean_lib Complexity

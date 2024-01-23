@@ -27,12 +27,12 @@ theorem Option.mem_bind_of_mem {f : α → Option β} {o : Option α}
     (ha: a ∈ o) (hf: b ∈ f a): b ∈ o.bind f := (congrArg₂ _ ha rfl).trans hf
 
 namespace HMem
-variable {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β}
+variable {α: Type _} [Complexity.Coding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β}
 
 namespace Trace.TracedProgram
 
 section
-variable {γ: Type _} {δ: Type _} [enγ: Complexity.Encoding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} [hc: Complexity.Computable Encoding.Model fs]
+variable {γ: Type _} {δ: Type _} [enγ: Complexity.Coding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} [hc: Complexity.Computable Encoding.Model fs]
 
 def sound (f: α → β) (size: α → ℕ) (a: α): TracedProgram → Memory → Prop
 | exit, m => m = Complexity.encode (f a)
@@ -69,7 +69,7 @@ def sound' (f: α → β) (size: α → ℕ): TracedProgram → (α → Option M
     fm)
 end
 
-variable {γ: Type _} {δ: Type _} [enγ: Complexity.Encoding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} {hc: Complexity.Computable Encoding.Model fs}
+variable {γ: Type _} {δ: Type _} [enγ: Complexity.Coding γ Memory] [enδ: Complexity.Encoding δ Memory] {fs: γ → δ} {hc: Complexity.Computable Encoding.Model fs}
 
 theorem sound_branch_eq (h: inst.apply m = b):
     sound f size a (branch inst next) m = sound f size a (next b) m := h ▸ rfl
@@ -278,7 +278,7 @@ class HasTrace (f: α → β) where
 
 instance [tr: HasTrace f]: Trace.HasTracedProgram (Program.build tr.program) := tr.hasTracedProgram
 
-instance {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β} [tr: HasTrace f]: Complexity.Computable Encoding.Model f where
+instance {α: Type _} [Complexity.Coding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β} [tr: HasTrace f]: Complexity.Computable Encoding.Model f where
   program := .build tr.program
   has_result := Program.hasResult_of_sound tr.sound
 

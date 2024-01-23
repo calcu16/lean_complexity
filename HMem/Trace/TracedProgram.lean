@@ -8,7 +8,7 @@ inductive TracedProgram
 | exit
 | op (inst: OpInstruction) (next: TracedProgram)
 | branch (inst: BranchInstruction) (next: Bool → TracedProgram)
-| subroutine (dst src: Source) {γ: Type _} [enγ: Complexity.Encoding γ Memory] {δ: Type _} [enδ: Complexity.Encoding δ Memory]
+| subroutine (dst src: Source) {γ: Type _} [enγ: Complexity.Coding γ Memory] {δ: Type _} [enδ: Complexity.Encoding δ Memory]
   (fs: γ → δ) [h: Complexity.Computable Encoding.Model fs] (next: TracedProgram)
 | recurse (dst src: Source) (next: TracedProgram)
 
@@ -19,7 +19,7 @@ variable {α: Type _} [Complexity.Encoding α Memory] {β: Type _} [Complexity.E
 | [] => .exit
 | p::ps => p (build ps)
 
-@[match_pattern] def subroutine' (dst src: Source) {γ: Type _} (_hγ: Complexity.Encoding γ Memory) {δ: Type _} (_hδ: Complexity.Encoding δ Memory)
+@[match_pattern] def subroutine' (dst src: Source) {γ: Type _} (_hγ: Complexity.Coding γ Memory) {δ: Type _} (_hδ: Complexity.Encoding δ Memory)
     (fs: γ → δ) (_h: Complexity.Computable Encoding.Model fs) (next: TracedProgram): TracedProgram :=
   subroutine dst src fs next
 

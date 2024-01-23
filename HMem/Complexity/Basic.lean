@@ -3,16 +3,9 @@ import HMem.Trace.Cost
 import Complexity.Basic
 import HMem.Complexity.Def
 
-@[simp] theorem Function.HasUncurry.apply₂ (f: α → β → γ) (arg: α × β):
-    (↿f) arg = f arg.fst arg.snd := rfl
-
-
-@[simp] theorem Function.HasUncurry.apply₃ (f: α → β → γ → δ) (arg: α × β × γ):
-    (↿f) arg = f arg.fst arg.snd.fst arg.snd.snd := rfl
-
 namespace HMem.Complexity
 
-instance [Complexity.Encoding α Memory]: Program.HasCost ↿(@List.cons α) 1 where
+instance [Complexity.Coding α Memory]: Program.HasCost ↿(@List.cons α) 1 where
   program := [ .setv 0 true ]
   size _ := 0
   sound | (_, _) => by simp

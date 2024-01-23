@@ -1,27 +1,6 @@
 import HMem.Encoding.Basic
 import HMem.Trace.Cost
 
-
-@[simp] theorem Option.bind_comp_some:
-    (λ a ↦ Option.bind a f) ∘ (some ∘ g) = f ∘ g :=
-  funext λ _ ↦ rfl
-
-@[simp] theorem id_def: (λ (a: α) ↦ a) = id := rfl
-
-theorem lambda_comp {f: α → β}: (λ a ↦ f a) ∘ g = λ a ↦ (f (g a)) := funext λ _ ↦ rfl
-
-@[simp] theorem Complexity.decode_comp_encode
-    {α: Type _} [Setoid Data] [Encoding α Data]:
-    Complexity.decode α (Data := Data) ∘ Complexity.encode (α := α) (Data := Data) = some :=
-  funext λ _ ↦ decode_inv _
-
-@[simp] theorem Complexity.CostFunction.flatMap_some':
-  Complexity.CostFunction.flatMap Option.some g = g := rfl
-
-@[simp] theorem Complexity.CostFunction.flatMap_lambda_some {f: α → β}:
-  Complexity.CostFunction.flatMap (λ a ↦ Option.some (f a)) g = g ∘ f := rfl
-
-
 namespace HMem
 
 variable (next: List (Program → Program)) [Trace.HasTracedProgram (Program.build next)]
@@ -142,7 +121,7 @@ instance: Trace.HasCostedProgram (Program.build (.ifOp₂ op lhs rhs pos'::neg')
     | true => Program.costedMatches _
     | false => Program.costedMatches _)
 
-variable {γ: Type _} [Complexity.Encoding γ Memory] {δ: Type _} [Complexity.Encoding δ Memory] {fs: γ → δ} [Complexity.Computable Encoding.Model fs]
+variable {γ: Type _} [Complexity.Coding γ Memory] {δ: Type _} [Complexity.Encoding δ Memory] {fs: γ → δ} [Complexity.Computable Encoding.Model fs]
 @[simp] def Program.subroutine' (dst src: Source) (fs: γ → δ) [Complexity.Computable Encoding.Model fs]: Program → Program :=
   Program.subroutine dst src (Encoding.getProgram fs)
 instance: Trace.HasTracedProgram (Program.build (.subroutine' dst src fs::next)) where
