@@ -49,7 +49,7 @@ instance [Coding α Memory] [Coding β Memory]: Coding (α × β) Memory where
   decode_inv
   | (_, _) => by simp
 
-@[simp] theorem decode_prod [Encoding α Memory] [Encoding β Memory] {m: Memory}:
+@[simp] theorem decode_prod [Coding α Memory] [Coding β Memory] {m: Memory}:
   decode (α × β) m = Option.map₂ Prod.mk (decode α (m.getm false)) (decode β (m.getm true)) := rfl
 
 instance [Encoding α Memory] [Encoding β Memory]: Encoding (α ⊕ β) Memory where
@@ -103,6 +103,13 @@ instance [Coding α Memory]: Coding (List α) Memory where
 
 @[simp] theorem encode_list_nil [Encoding α Memory]: (encode ([]: List α):Memory) = 0 := rfl
 @[simp] theorem encode_list_cons [Encoding α Memory] {a: α}: (encode (a::as):Memory) = .mk true (encode a) (encode as) := rfl
+
+@[simp] theorem decode_nil [Complexity.Coding α HMem.Memory]: Complexity.decode (List α) (0:HMem.Memory) = some [] := rfl
+@[simp] theorem decode_cons [Complexity.Coding α HMem.Memory]: Complexity.decode (List α) (HMem.Memory.mk true hd tl) =
+  Option.map₂ List.cons (Complexity.decode α hd) (Complexity.decode _ tl) :=
+    congrArg₂ (Option.map₂ List.cons)
+      (congrArg _ (HMem.Memory.canonical_out.symm ▸ HMem.Memory.out_sound))
+      (HMem.Memory.canonical_out.symm ▸ rfl)
 
 instance [Encoding α Memory]: Encoding (Option α) Memory where
   encode
@@ -248,6 +255,17 @@ theorem encode_nat_def {n: ℕ}: (encode n) = Memory.mk (decide (n ≠ 0)) (enco
 @[simp] theorem encode_getv {n: ℕ}: Memory.getv (encode n) = decide (n ≠ 0) :=
   (congrArg Memory.getv encode_nat_def).trans Memory.getv_mk
 
+theorem decode_nat: Complexity.decode ℕ (m:HMem.Memory) = Option.map Nat.ofBits (Complexity.decode (List Bool) m) := rfl
+@[simp] theorem decode_zero: Complexity.decode ℕ (0:HMem.Memory) = some 0 := rfl
+@[simp] theorem decode_succ: Complexity.decode ℕ (HMem.Memory.mk true hd tl) = Option.map (λ n ↦ 2 * n + Bool.toNat hd.getv) (Complexity.decode ℕ tl) := by
+  simp [decode_nat]
+  apply congrArg₂ Option.map _ rfl
+  apply funext
+  intro xs
+  simp [Nat.ofBits]
+  match HMem.Memory.getv hd with
+  | true => simp [← Nat.two_mul]
+  | false => simp [← Nat.two_mul]
 
 def Model: Complexity.Model where
   Program := Program

@@ -4,6 +4,7 @@ import HMem.Encoding.Basic
 import HMem.Encoding.Emulator
 import HMem.Complexity.Basic
 import HMem.Complexity.Memory
+import HMem.Complexity.Nat
 import HMem.Trace.TracedProgram
 import HMem.Trace.Sound
 import HMem.Trace.Cost

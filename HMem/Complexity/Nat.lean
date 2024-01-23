@@ -1,28 +1,6 @@
 import HMem.Complexity.Def
 import HMem.Complexity.Basic
 
-
-theorem decode_nat: Complexity.decode ℕ (m:HMem.Memory) = Option.map Nat.ofBits (Complexity.decode (List Bool) m) := rfl
-@[simp] theorem decode_nil [Complexity.Encoding α HMem.Memory]: Complexity.decode (List α) (0:HMem.Memory) = some [] := rfl
-@[simp] theorem decode_cons [Complexity.Encoding α HMem.Memory]: Complexity.decode (List α) (HMem.Memory.mk true hd tl) =
-  Option.map₂ List.cons (Complexity.decode α hd) (Complexity.decode _ tl) :=
-    congrArg₂ (Option.map₂ List.cons)
-      (congrArg _ (HMem.Memory.canonical_out.symm ▸ HMem.Memory.out_sound))
-      (HMem.Memory.canonical_out.symm ▸ rfl)
-
-@[simp] theorem decode_zero: Complexity.decode ℕ (0:HMem.Memory) = some 0 := rfl
-@[simp] theorem decode_succ: Complexity.decode ℕ (HMem.Memory.mk true hd tl) = Option.map (λ n ↦ 2 * n + Bool.toNat hd.getv) (Complexity.decode ℕ tl) := by
-  simp [decode_nat]
-  apply congrArg₂ Option.map _ rfl
-  apply funext
-  intro xs
-  simp [Nat.ofBits]
-  match HMem.Memory.getv hd with
-  | true => simp [← Nat.two_mul]
-  | false => simp [← Nat.two_mul]
-
-@[simp] theorem encode_zero: Complexity.encode (0:ℕ) = (0:HMem.Memory) := rfl
-
 namespace HMem.Complexity.Nat
 
 instance: Program.HasCost (λ n ↦ n / 2) 1 where
@@ -60,13 +38,19 @@ instance: Program.HasCost Nat.succ (Nat.log 2) where
   ]
   size := Nat.size
   sound := Nat.binaryRec' rfl λ b ↦
-      by cases b <;> simp [← Nat.two_mul, Nat.mul_add_mod, Nat.mul_add_div]
+    by
+      cases b <;>
+      simp [← Nat.two_mul, Nat.mul_add_mod, Nat.mul_add_div]
+
+
+
   cost_ale := Complexity.ALE.trans
     (Program.simpleLoopComplexity (Complexity.ALE.const_ale _ _) rfl)
     ⟨_, _, λ _ ↦ le_of_le_of_eq Nat.size_le_succ_log (congrArg₂ _ (one_mul _).symm rfl) ⟩
 
 def Nat.AddWithCarry (x y: ℕ) (c: Bool): ℕ := x + y + Bool.toNat c
 
+set_option maxHeartbeats 2000000
 instance: Program.HasCost ↿Nat.AddWithCarry (λ | (x, y, _) => Nat.log 2 (x + y)) where
   program := [
     .ifOp₂ Bool.or 1 5 [
@@ -112,7 +96,7 @@ instance: Program.HasCost ↿Nat.add (λ | (x, y) => Nat.log 2 (x + y)) where
   sound _ := by simp [Nat.AddWithCarry]
   cost_ale := by
     apply Program.nonRecursiveComplexity
-    apply Complexity.ale_of_le
+    apply Complexity.ALE.of_le
     intro arg
     match arg with
     | (x, y) =>
