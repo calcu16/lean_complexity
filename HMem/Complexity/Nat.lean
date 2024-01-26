@@ -1,6 +1,37 @@
 import HMem.Complexity.Def
 import HMem.Complexity.Basic
 
+-- def Unary.ofNat (n: ℕ): List Unit := (List.cons ())^[n] []
+-- def Unary.toNat: List Unit → ℕ := List.length
+-- def Unary.div2: List Unit → List Unit
+-- | [] => []
+-- | _::[] => []
+-- | _::_::us => ()::div2 us
+-- def Unary.max: List Unit → List Unit → List Unit
+-- | [], rhs => rhs
+-- | lhs, [] => lhs
+-- | _::lhs, _::rhs => ()::max lhs rhs
+
+-- def Nat.unarySize (n: ℕ): List Unit := n.binaryRec [] (λ _ _ ih ↦ ()::ih)
+-- def Nat.shiftUnary (n: ℕ): List Unit → ℕ
+-- | [] => n
+-- | _::us => shiftUnary (n / 2) us
+
+-- def Nat.modUnaryPow (n: ℕ): List Unit → ℕ
+
+-- partial def Karatsuba (n m: ℕ): ℕ :=
+--   match n, m with
+--   | 0, _ => 0
+--   | 1 , m => m
+--   | _, 0 => 0
+--   | n, 1 => n
+--   | n, m =>
+--     have l := Unary.div2 (Unary.max n.unarySize m.unarySize)
+
+--     sorry
+
+
+
 namespace HMem.Complexity.Nat
 
 instance: Program.HasCost (λ n ↦ n / 2) 1 where
@@ -86,7 +117,6 @@ instance: Program.HasCost ↿Nat.AddWithCarry (λ | (x, y, _) => Nat.log 2 (x + 
       apply Nat.add_size_le
       apply mul_le_mul (le_refl _) (Nat.size_le_succ_log) (zero_le _) (zero_le _)
 
-
 instance: Program.HasCost ↿Nat.add (λ | (x, y) => Nat.log 2 (x + y)) where
   program := [
     .move 5 2,
@@ -104,7 +134,6 @@ instance: Program.HasCost ↿Nat.add (λ | (x, y) => Nat.log 2 (x + y)) where
       apply Eq.trans
       apply Nat.zero_add
       simp [flip, Complexity.CostFunction.flatMap]
-
 
 end HMem.Complexity.Nat
 

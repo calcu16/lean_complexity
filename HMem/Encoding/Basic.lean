@@ -25,6 +25,14 @@ theorem pathInj {v₀ v₁: α} [Encoding α Memory] {m₀ m₁: Memory} (p: Lis
     (hm: m₀ ≈ m₁) (h₀: m₀.getmp p = Encoding.encode v₀) (h₁: m₁.getmp p = Encoding.encode v₁): v₀ = v₁ :=
   Encoding.encode_inj (Data := Memory) _ _ (h₀ ▸ h₁ ▸ congrArg₂ _ hm rfl)
 
+instance [Subsingleton α]: Complexity.Encoding α Memory where
+  encode _ := 0
+  encode_inj _ _ _ := Subsingleton.elim _ _
+
+instance [Subsingleton α] [Inhabited α]: Complexity.Coding α Memory where
+  decode _ := some default
+  decode_inv _ := congrArg some (Subsingleton.elim _ _)
+
 instance: Complexity.Encoding Bool Memory where
   encode b := .mk b 0 0
   encode_inj _ _ := by simp
