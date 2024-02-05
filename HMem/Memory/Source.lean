@@ -28,7 +28,6 @@ def size: Source → ℕ
 @[simp] theorem size_idx_hd: hd.size < (idx hd tl).size := Nat.lt_succ_of_le (Nat.le_add_right _ _)
 @[simp] theorem size_idx_tl: tl.size < (idx hd tl).size := Nat.lt_succ_of_le (Nat.le_add_left _ _)
 
-
 def get: Source → Memory → List Bool
 | nil, _ => []
 | imm hd tl, m => hd::(tl.get m)
@@ -68,6 +67,35 @@ Level order accessing into Memory
 instance: OfNat Source n := ⟨ fromNat n ⟩
 @[simp] theorem ofNatZero: (OfNat.ofNat 0:Source) = .nil := rfl
 @[simp] theorem ofNatSucc: (OfNat.ofNat (n+1):Source) = succ (OfNat.ofNat n) := rfl
+
+def append: Source → Source → Source
+| nil => id
+| imm hd tl => imm hd ∘ append tl
+| idx hd tl => idx hd ∘ append tl
+
+instance: Append Source := ⟨ append ⟩
+
+@[simp] theorem nil_append: Source.nil ++ s = s := rfl
+@[simp] theorem imm_append: Source.imm hd tl ++ s = imm hd (tl ++ s) := rfl
+@[simp] theorem idx_append: Source.idx hd tl ++ s = idx hd (tl ++ s) := rfl
+@[simp] theorem append_nil: {s: Source} → s ++ Source.nil = s
+| nil => rfl
+| imm _ _ => congrArg _ append_nil
+| idx _ _ => congrArg _ append_nil
+
+def ofList: List Bool → Source
+| [] => .nil
+| b::bs => .imm b (ofList bs)
+
+instance: Coe (List Bool) Source := ⟨ ofList ⟩
+
+theorem coe_get: (bs: List Bool) → Source.get bs m = bs
+| [] => rfl
+| _::_ => congrArg (List.cons _) (coe_get _)
+
+@[simp] theorem coe_nil: ([]:List Bool) = Source.nil := rfl
+@[simp] theorem coe_cons {b: Bool} {bs: List Bool}: b::bs = Source.imm b bs := rfl
+
 
 end Source
 

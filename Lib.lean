@@ -23,6 +23,9 @@ theorem zero_sup [CanonicallyOrderedLatticeAddCommMonoid α] (a : α):
 theorem sup_zero [CanonicallyOrderedLatticeAddCommMonoid α] (a : α):
     a ⊔ 0 = a := sup_of_le_left (zero_le a)
 
+theorem sup_le_add [CanonicallyOrderedLatticeAddCommMonoid α] (a b: α):
+    a ⊔ b ≤ a + b := sup_le (le_add_right (le_refl _)) (le_add_left (le_refl _))
+
 noncomputable def distance [CanonicallyOrderedAddCommMonoid α] {a b: α} (h: a ≤ b): α :=
     Classical.choose (exists_add_of_le h)
 
@@ -75,7 +78,6 @@ def Nat.ofBits: List Bool → ℕ
     λ h ↦ Nat.ofBits_inverse n ▸ Nat.ofBits_inverse m ▸ congrArg Nat.ofBits h,
     λ h ↦ h ▸ rfl ⟩
 
-
 theorem Nat.bit_div_2: (Nat.bit b n) / 2 = n := by
   set_option linter.deprecated false in
   cases b <;> dsimp [bit, bit0, bit1] <;> omega
@@ -123,6 +125,29 @@ attribute [simp] bit0 bit1
 
 @[simp] theorem Nat.div2_succ_succ: (n + 1 + 1) / 2 = n / 2 + 1 := Nat.add_div_right _ zero_lt_two
 
+theorem Nat.mod_mul {a b c: ℕ}: a % (b * c) = b * ((a / b) % c) + a % b := by
+  match b with
+  | 0 => simp
+  | b + 1 =>
+    match c with
+    | 0 => simp[Nat.div_add_mod]
+    | c + 1 =>
+      apply Eq.trans
+      apply congrArg₂ _ (Nat.div_add_mod a (b + 1)).symm rfl
+      apply Eq.trans
+      apply Nat.add_mod
+      apply Eq.trans
+      exact congrArg₂ _ (congrArg₂ _ (Nat.mul_mod_mul_left _ _ _) (Nat.mod_eq_of_lt (lt_of_lt_of_le (Nat.mod_lt _ (Nat.zero_lt_succ _)) (Nat.le_mul_of_pos_right (Nat.zero_lt_succ _))))) rfl
+      apply Nat.mod_eq_of_lt
+      apply Nat.lt_of_succ_le
+      apply le_trans
+      apply Nat.succ_le_succ
+      apply add_le_add
+      apply Nat.mul_le_mul_left
+      apply Nat.le_of_lt_succ (Nat.mod_lt _ (Nat.zero_lt_succ _))
+      apply Nat.le_of_lt_succ (Nat.mod_lt _ (Nat.zero_lt_succ _))
+      simp [Nat.succ_eq_add_one, left_distrib, right_distrib, ← add_assoc]
+
 theorem Nat.add_size_le: size x + size y ≤ 2 * size (x + y) :=
   Nat.two_mul _ ▸ add_le_add
     (size_le_size (le_add_right _ _))
@@ -130,6 +155,27 @@ theorem Nat.add_size_le: size x + size y ≤ 2 * size (x + y) :=
 
 def Bool.majoritySelect (a b c: Bool): Bool := a ∧ b ∨ a ∧ c ∨ b ∧ c
 def Bool.xor₃ (a b c: Bool): Bool := xor a (xor b c)
+
+@[simp] theorem Bool.majoritySelect_fin: (a b c: Fin 2) → majoritySelect (a.val = 1) (b.val = 1) (c.val = 1) = (decide ((a.val + b.val + c.val) / 2 = 1))
+| 0, 0, 0 => by decide
+| 0, 0, 1 => by decide
+| 0, 1, 0 => by decide
+| 0, 1, 1 => by decide
+| 1, 0, 0 => by decide
+| 1, 0, 1 => by decide
+| 1, 1, 0 => by decide
+| 1, 1, 1 => by decide
+
+@[simp] theorem Bool.xor₃_fin: (a b c: Fin 2) → xor₃ (a.val = 1) (b.val = 1) (c.val = 1) = (decide ((a.val + b.val + c.val) % 2 = 1))
+| 0, 0, 0 => by decide
+| 0, 0, 1 => by decide
+| 0, 1, 0 => by decide
+| 0, 1, 1 => by decide
+| 1, 0, 0 => by decide
+| 1, 0, 1 => by decide
+| 1, 1, 0 => by decide
+| 1, 1, 1 => by decide
+
 
 @[simp] theorem Nat.not_mod2_eq_zero: (¬ (n % 2 = 0)) ↔ (n % 2 = 1) := by
   cases n using binaryRec with
@@ -188,6 +234,22 @@ theorem Nat.size_le_succ_log: size n ≤ (log 2 n) + 1 := by
   apply Nat.succ_le_succ (zero_le _)
   cases b <;> simp
   cases b <;> simp
+
+theorem Nat.pred_size_eq_log: size n - 1 = log 2 n := by
+  refine binaryRec' (n := n) rfl ?hi
+  intro b n hb ih
+  cases n
+  cases b <;> rfl
+  rw [size_bit, bit_val, Nat.log_mul_add, Nat.succ_eq_add_one, Nat.add_sub_cancel, ← ih, Nat.sub_add_cancel]
+  exact tsub_add_cancel_iff_le.mp rfl
+  exact one_lt_two
+  exact Nat.succ_le_succ (Nat.zero_le _)
+  { cases b <;> simp }
+  { simp }
+
+theorem Nat.size_succ_eq_succ_log_succ: size (n + 1) = log 2 (n + 1) + 1 := by
+  rw [← Nat.pred_size_eq_log, Nat.sub_add_cancel]
+  exact tsub_add_cancel_iff_le.mp rfl
 
 @[simp] theorem Nat.mod2_succ_eq_one: (n + 1) % 2 = 1 ↔ n % 2 = 0 := by
   cases n using binaryRec with
@@ -254,3 +316,23 @@ theorem Nat.size_mul2_lt (h: n ≠ 0): Nat.size (2 * n) = Nat.size n + 1 :=
 @[simp] theorem Nat.size_bit1': Nat.size (2 * n + 1) = Nat.size n + 1 :=
   (congrArg _ (Nat.bit_val true _).symm).trans
   (Nat.binaryRec_eq' _ _ (Or.inr λ _ ↦ rfl))
+
+theorem Nat.size_le_self: Nat.size n ≤ n := by
+  induction n using Nat.binaryRec' with
+  | z => exact le_refl _
+  | f b n hb ih =>
+    rw [size_bit]
+    cases b
+    simp
+    apply Nat.add_le_add (c := 1) ih
+    { cases n
+      exact absurd (hb rfl) Bool.noConfusion
+      exact Nat.succ_le_succ (Nat.zero_le _) }
+    simp
+    apply Nat.succ_le_succ
+    apply le_trans
+    apply ih
+    apply le_add_left
+    cases b
+    simpa using λ h ↦ absurd (hb h) Bool.noConfusion
+    simp

@@ -244,11 +244,27 @@ theorem sound_of_sound': {tp: TracedProgram} → {fm: α → Option Memory} →
         (Option.mem_bind_of_mem hm
           (Option.mem_map_of_mem _ (Option.get_mem _)))⟩
 
+theorem sound_maxRecurse_zero: {tp: TracedProgram} →
+    tp.toProgram.maxRecurse = 0 → sound f sz a tp m → sound f (λ _ ↦ 0) a tp m
+| .exit, _, h => h
+| .op _ next, hr, h => sound_maxRecurse_zero (tp := next) hr h
+| .branch inst next, hr, h => sound_maxRecurse_zero (tp := next _)
+    (match inst.apply m with
+      | true => (Nat.max_eq_zero_iff.mp hr).left
+      | false => (Nat.max_eq_zero_iff.mp hr).right
+    ) h
+| .subroutine' _ _ _ _ _ _ _, hr, h => h.imp λ
+  | _, ⟨harg, h⟩ => ⟨harg, sound_maxRecurse_zero hr h⟩
+| .recurse _ _ _, hr, _ => absurd hr (Nat.succ_ne_zero _)
+
 end Trace.TracedProgram
 
 namespace Program
 
 def sound (p: Program) [Trace.HasTracedProgram p] (f: α → β) (size: α → ℕ): Prop := ∀ a, p.traced.sound f size a (Complexity.encode a)
+
+theorem sound_maxRecurse_zero {p: Program} [Trace.HasTracedProgram p] (hr: p.maxRecurse = 0) (h: p.sound f sz):
+    p.sound f (λ _ ↦ 0) := λ _ ↦ Trace.TracedProgram.sound_maxRecurse_zero (p.tracedMatches.symm ▸ hr) (h _)
 
 theorem hasResult_of_soundHelper {p: Program} [Trace.HasTracedProgram p] {size: α → ℕ} (h: p.sound f size) (n: ℕ):
     ∀ a, n = size a → p.hasResult (Complexity.encode a) (Complexity.encode (f a)) :=
@@ -281,6 +297,7 @@ instance [tr: HasTrace f]: Trace.HasTracedProgram (Program.build tr.program) := 
 instance {α: Type _} [Complexity.Coding α Memory] {β: Type _} [Complexity.Encoding β Memory] {f: α → β} [tr: HasTrace f]: Complexity.Computable Encoding.Model f where
   program := .build tr.program
   has_result := Program.hasResult_of_sound tr.sound
+
 
 end Program
 end HMem

@@ -78,6 +78,9 @@ instance [CommSemiring θ]: CommSemiring (CostFunction α θ) where
   left_distrib _ _ _ := funext λ _ ↦ left_distrib _ _ _
   right_distrib _ _ _  := funext λ _ ↦ right_distrib _ _ _
 
+instance [CommSemiring θ]: NatCast (CostFunction α θ) where
+  natCast n _ := n
+
 instance [Preorder θ]: Preorder (CostFunction α θ) where
   le_refl _ _ := le_refl _
   le_trans _ _ _ hab hbc _ := le_trans (hab _) (hbc _)
@@ -182,6 +185,7 @@ theorem flatMap_le_flatMap [Zero θ] [Preorder θ] {x y: CostFunction β θ} (h:
   match ha:f a with
   | none => flatMap_none ha x ▸ flatMap_none ha y ▸ le_refl _
   | some _ => flatMap_some ha x ▸ flatMap_some ha y ▸ h _
+
 
 end CostFunction
 end Complexity

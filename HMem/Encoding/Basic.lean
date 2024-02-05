@@ -6,6 +6,7 @@ import Mathlib.Logic.Basic
 import Mathlib.Data.Fin.Tuple.Basic
 import Mathlib.Init.Data.Nat.Bitwise
 import Lib
+import Karatsuba
 
 namespace HMem
 namespace Encoding
@@ -274,6 +275,49 @@ theorem decode_nat: Complexity.decode ℕ (m:HMem.Memory) = Option.map Nat.ofBit
   match HMem.Memory.getv hd with
   | true => simp [← Nat.two_mul]
   | false => simp [← Nat.two_mul]
+
+instance: Complexity.Coding (Fin 2) Memory where
+  encode
+  | 0 => 0
+  | 1 => 1
+  encode_inj
+  | ⟨0, _⟩, ⟨0, _⟩, _ => rfl
+  | ⟨0, _⟩, ⟨1, _⟩, h => absurd (congrArg Memory.getv h) Bool.noConfusion
+  | ⟨1, _⟩, ⟨0, _⟩, h => absurd (congrArg Memory.getv h) Bool.noConfusion
+  | ⟨1, _⟩, ⟨1, _⟩, _ => rfl
+  decode m := some ⟨ m.getv.toNat, match m.getv with
+    | false => zero_lt_two
+    | true => one_lt_two ⟩
+  decode_inv
+  | 0 => rfl
+  | 1 => rfl
+
+def encodeBitTree: BitTree → Memory
+| .bit 0 => 0
+| .bit 1 => .mk false 1 0
+| .node hi lo => .mk true (encodeBitTree hi) (encodeBitTree lo)
+
+def decodeBitTree: Tree Bool → BitTree
+| .nil => .bit 0
+| .node false .nil _ => .bit 0
+| .node false (.node b _ _) _ => .bit (ite b 1 0)
+| .node true lhs rhs => .node (decodeBitTree lhs) (decodeBitTree rhs)
+
+theorem decodeBitTree_inv: (t: BitTree) → decodeBitTree (Memory.out (encodeBitTree t)) = t
+| .bit 0 => rfl
+| .bit 1 => rfl
+| .node _ _ => congrArg₂ BitTree.node
+  ((congrArg _ Memory.canonical_out).trans (decodeBitTree_inv _))
+  ((congrArg _ Memory.canonical_out).trans (decodeBitTree_inv _))
+
+instance: Complexity.Coding BitTree Memory where
+  encode := encodeBitTree
+  encode_inj _ _ h :=
+    (decodeBitTree_inv _).symm.trans
+    ((congrArg (decodeBitTree ∘ Memory.out) h).trans
+    (decodeBitTree_inv _))
+  decode := some ∘ decodeBitTree ∘ Memory.out
+  decode_inv _ := congrArg _ (decodeBitTree_inv _)
 
 def Model: Complexity.Model where
   Program := Program

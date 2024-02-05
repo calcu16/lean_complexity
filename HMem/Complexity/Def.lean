@@ -1,5 +1,5 @@
 import HMem.Encoding.Basic
-import HMem.Trace.Cost
+import HMem.Trace.Master
 
 namespace HMem
 
@@ -51,6 +51,16 @@ instance: Trace.HasTracedProgram (Program.build (.copyv dst src::next)) where
   tracedProgramMatches := congrArg _ (Program.tracedMatches _)
 instance: Trace.HasCostedProgram (Program.build (.copyv dst src::next')) where
   costedProgram := .copyv dst src (Program.build next').costed
+  costedProgramMatches := congrArg _ (Program.costedMatches _)
+
+@[simp] def Program.op₂ (op₂: Bool → Bool → Bool) (dst s₀ s₁: Source): Program → Program := op (.vop (λ f ↦ op₂ (f 0) (f 1)) dst ![s₀, s₁])
+@[simp] def Trace.TracedProgram.op₂ (op₂: Bool → Bool → Bool) (dst s₀ s₁: Source): TracedProgram → TracedProgram := op (.vop (λ f ↦ op₂ (f 0) (f 1)) dst ![s₀, s₁])
+@[simp] def Trace.CostedProgram.op₂ (op₂: Bool → Bool → Bool) (dst s₀ s₁: Source): CostedProgram → CostedProgram := op (.vop (λ f ↦ op₂ (f 0) (f 1)) dst ![s₀, s₁])
+instance: Trace.HasTracedProgram (Program.build (.op₂ op₂ dst s₀ s₁::next)) where
+  tracedProgram := .op₂ op₂ dst s₀ s₁ (Program.build next).traced
+  tracedProgramMatches := congrArg _ (Program.tracedMatches _)
+instance: Trace.HasCostedProgram (Program.build (.op₂ op₂ dst s₀ s₁::next')) where
+  costedProgram := .op₂ op₂ dst s₀ s₁ (Program.build next').costed
   costedProgramMatches := congrArg _ (Program.costedMatches _)
 
 @[simp] def Program.op₃ (op₃: Bool → Bool → Bool → Bool) (dst s₀ s₁ s₂: Source): Program → Program := op (.vop (λ f ↦ op₃ (f 0) (f 1) (f 2)) dst ![s₀, s₁, s₂])

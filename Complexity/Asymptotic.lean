@@ -29,6 +29,7 @@ structure ALE [CanonicallyOrderedLatticeCommSemiring θ] (x y: CostFunction α �
 
 notation:50 f " ∈ O(" g ")" => ALE f g
 
+
 namespace ALE
 variable {α: Type _} {θ: Type _}
 variable {x y z: CostFunction α θ} [CanonicallyOrderedLatticeCommSemiring θ]
@@ -42,6 +43,25 @@ theorem le_bound (h: x ∈ O(y)): x ≤ h.bound := h.ale
 
 theorem le_zero_bound (h: x ∈ O(0)): x ≤ h.k :=
   le_of_le_of_eq h.le_bound ((congrArg₂ _ (mul_zero _) rfl).trans (zero_add _))
+
+def mk' {x y: CostFunction α ℕ} (m k: ℕ) (ale': x ≤ ↑m * y ⊔ ↑k): x ∈ O(y) :=
+  ⟨_, _, λ _ ↦ le_trans (ale' _) (sup_le_add _ _)⟩
+
+def m' {x y: CostFunction α ℕ} (h: x ∈ O(y)): ℕ := h.m + h.k
+
+def bound' {x y: CostFunction α ℕ} (h: x ∈ O(y)): CostFunction α ℕ := ↑h.m' * y ⊔ ↑h.k
+
+theorem le_bound' {x y: CostFunction α ℕ} (h: x ∈ O(y)): x ≤ h.bound' :=
+  le_trans h.le_bound λ a ↦
+  match hy:y a with
+  | 0 => le_of_eq
+      (((congrArg₂ _ ((congrArg _ hy).trans (Nat.mul_zero _)) rfl).trans (Nat.zero_add _)).trans
+      ((congrArg₂ _ ((congrArg _ hy).trans (Nat.mul_zero _)) rfl).trans (zero_sup _)).symm)
+  | _+1 =>
+    le_trans (le_of_le_of_eq
+      ((add_le_add_left (Nat.le_mul_of_pos_right (lt_of_lt_of_eq (Nat.zero_lt_succ _) hy.symm)) _))
+      (right_distrib _ _ _).symm)
+      le_sup_left
 
 def refl: x ∈ O(x) := of_le (le_refl _)
 
@@ -125,6 +145,14 @@ def const_ale (n: θ) (f: CostFunction α θ): n ∈ O(f) where
 def bound_ale_self (h: x ∈ O(y)): h.bound ∈ O(y) := ⟨_, _, le_refl _⟩
 
 def bound_ale_trans (hy: x ∈ O(y)) (hz: y ∈ O(z)): hy.bound ∈ O(z) := trans (bound_ale_self _) hz
+
+def const_flatMap_ale (f: α → Option β) (n: θ) (y: CostFunction α θ): CostFunction.flatMap f n ∈ O(y) where
+  m := 0
+  k := n
+  ale a :=
+    match ha:f a with
+    | some _ => le_of_eq_of_le (CostFunction.flatMap_some ha _) (le_add_left (le_refl _))
+    | none => le_of_eq_of_le (CostFunction.flatMap_none ha _) (zero_le _)
 
 def flatMap_ale_flatMap {x y: CostFunction β θ} (h: x ∈ O(y)) (f: α → Option β):
     x.flatMap f ∈ O(y.flatMap f) where
