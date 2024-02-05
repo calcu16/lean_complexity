@@ -54,7 +54,7 @@ instance [LE θ]: LE (CostFunction α θ) where
 
 instance [Add θ]: Add (CostFunction α θ) where
   add x y a := x a + y a
-theorem add_def [Add θ] {x y: CostFunction α θ}: (x + y) a = x a + y a := rfl
+@[simp] theorem add_def [Add θ] {x y: CostFunction α θ}: (x + y) a = x a + y a := rfl
 theorem const_add_const [Add θ](a b: θ): ((a + b:θ):CostFunction α θ) = (a:CostFunction α θ) + (b:CostFunction α θ) := funext λ _ ↦ rfl
 
 instance [AddCommMonoid β]: AddCommMonoid (CostFunction α β) where
@@ -66,7 +66,7 @@ instance [AddCommMonoid β]: AddCommMonoid (CostFunction α β) where
 instance [Mul θ]: Mul (CostFunction α θ) where
   mul x y a := x a * y a
 theorem const_mul_const [Mul θ] (a b: θ): ((a * b:θ):CostFunction α θ) = (a:CostFunction α θ) * (b:CostFunction α θ) := funext λ _ ↦ rfl
-theorem mul_def [Mul θ] {x y: CostFunction α θ}: (x * y) a = x a * y a := rfl
+@[simp] theorem mul_def [Mul θ] {x y: CostFunction α θ}: (x * y) a = x a * y a := rfl
 
 instance [CommSemiring θ]: CommSemiring (CostFunction α θ) where
   one_mul _ := funext λ _ ↦ one_mul _
@@ -136,8 +136,8 @@ instance [Lattice θ]: Lattice (CostFunction α θ) where
   inf_le_right _ _ _ := inf_le_right
   le_inf _ _ _ hab hac _ := le_inf (hab _) (hac _)
 
-theorem sup_def [Lattice θ] {x y: CostFunction α θ}: (x ⊔ y) a = x a ⊔ y a := rfl
-theorem inf_def [Lattice θ]  {x y: CostFunction α θ}: (x ⊓ y) a = x a ⊓ y a := rfl
+@[simp] theorem sup_def [Lattice θ] {x y: CostFunction α θ}: (x ⊔ y) a = x a ⊔ y a := rfl
+@[simp] theorem inf_def [Lattice θ]  {x y: CostFunction α θ}: (x ⊓ y) a = x a ⊓ y a := rfl
 theorem const_sup_const [Lattice θ] (a b: θ): ((a ⊔ b:θ):CostFunction α θ) = (a:CostFunction α θ) ⊔ (b:CostFunction α θ) := funext λ _ ↦ rfl
 theorem const_inf_const [Lattice θ] (a b: θ): ((a ⊓ b:θ):CostFunction α θ) = (a:CostFunction α θ) ⊓ (b:CostFunction α θ) := funext λ _ ↦ rfl
 

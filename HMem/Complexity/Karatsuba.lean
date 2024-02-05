@@ -303,6 +303,20 @@ instance: Program.HasCost ↿BitTree.karatsuba (Nat.pow 3 ∘ List.length ∘ Pr
     simp [BitTree.karatsuba, ← Fin.val_eq_val]
   cost_ale := by
     apply Program.divideAndConquerComplexityLeafHeavy
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
+    -- apply Complexity.ALE.add_ale
     sorry
 
 

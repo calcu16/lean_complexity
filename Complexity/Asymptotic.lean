@@ -176,6 +176,34 @@ structure AEQ [CanonicallyOrderedLatticeCommSemiring θ] (x y: CostFunction α �
 
 notation:50 f " ∈ θ(" g ")" => AEQ f g
 
+structure ANLE [CanonicallyOrderedLatticeCommSemiring θ] (x y: CostFunction α θ) where
+  a: θ → θ → α
+  agt (m k: θ): ¬ x (a m k) ≤ (↑m * y + ↑k) (a m k)
+
+notation:50 f " ∉ O(" g ")" => ANLE f g
+
+theorem not_anle_of_ale [CanonicallyOrderedLatticeCommSemiring θ]
+    {x y: CostFunction α θ} (h: x ∈ O(y)): IsEmpty (x ∉ O(y)) :=
+  IsEmpty.mk  λ hn ↦ (hn.agt _ _) (h.ale _)
+
+theorem not_ale_of_anle [CanonicallyOrderedLatticeCommSemiring θ]
+    {x y: CostFunction α θ} (h: x ∉ O(y)): IsEmpty (x ∈ O(y)) :=
+  IsEmpty.mk  λ hn ↦ (h.agt _ _) (hn.ale _)
+
+theorem anle_or_ale [CanonicallyOrderedLatticeCommSemiring θ]
+    {x y: CostFunction α θ}: Nonempty (x ∈ O(y)) ∨ Nonempty (x ∉ O(y)) :=
+  (em (∃ (m k: θ), x ≤ ↑m * y + ↑k)).imp
+    (λ h ↦ h.elim λ _ h ↦ h.elim λ _ ↦ Nonempty.intro ∘ ALE.mk _ _)
+    (λ h ↦ Nonempty.intro (ANLE.mk _ λ m _ ↦ Classical.choose_spec (not_forall.mp (not_exists.mp (not_exists.mp h m) _))))
+
+theorem not_anle_iff_ale [CanonicallyOrderedLatticeCommSemiring θ]
+    {x y: CostFunction α θ}: IsEmpty (x ∉ O(y)) ↔ Nonempty (x ∈ O(y)) :=
+  ⟨ or_iff_not_imp_right.mp anle_or_ale ∘ not_nonempty_iff.mpr, not_anle_of_ale ∘ Classical.choice ⟩
+
+theorem not_ane_iff_anle [CanonicallyOrderedLatticeCommSemiring θ]
+    {x y: CostFunction α θ}: IsEmpty (x ∈ O(y)) ↔ Nonempty (x ∉ O(y)) :=
+  ⟨ or_iff_not_imp_left.mp anle_or_ale ∘ not_nonempty_iff.mpr, not_ale_of_anle ∘ Classical.choice ⟩
+
 /-
 Asymptotically Less Than (ALT)
 
@@ -183,8 +211,7 @@ For all offset multipls of x, this computes an (a: α) such that (y a) is greate
 -/
 structure ALT [CanonicallyOrderedLatticeCommSemiring θ] (x y: CostFunction α θ): Type _ where
   le: x ∈ O(y)
-  a: θ → θ → α
-  gt (m k: θ): y (a m k) > (↑m * x + ↑k) (a m k)
+  gt: y ∉ O(y)
 
 notation:50 f " ∈ o(" g ")" => ALT f g
 
